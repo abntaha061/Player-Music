@@ -12,12 +12,12 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.draw.scale
@@ -61,12 +61,12 @@ fun NowPlayingScreen(
     var isLyricsFullscreen by remember { mutableStateOf(false) }
     var isTranslationActive by remember { mutableStateOf(false) }
 
-    // Immersive back press gesture handler
+    // Immersive back press gesture handler: if lyrics are fullscreen, collapse back to disk first!
     BackHandler(enabled = isLyricsFullscreen) {
         isLyricsFullscreen = false
     }
 
-    // If no song is loaded
+    // If no song is loaded, show a friendly empty player state
     if (currentSong == null) {
         Box(
             modifier = Modifier
@@ -86,6 +86,7 @@ fun NowPlayingScreen(
 
     val song = currentSong!!
 
+    // Infinite rotating animations for the disk cover art when playing!
     val infiniteTransition = rememberInfiniteTransition(label = "DiskRotation")
     val diskRotationAngle by infiniteTransition.animateFloat(
         initialValue = 0f,
@@ -98,535 +99,529 @@ fun NowPlayingScreen(
     )
     val activeDiskRotation = if (playbackState == PlaybackState.PLAYING) diskRotationAngle else 0f
 
+    // Dominant color theme matching from the animated palette state of the view model!
     val accentColor by viewModel.trackDominantColor.collectAsState()
     val vibrantAccentColor by viewModel.trackVibrantColor.collectAsState()
 
-    // Wrapper Box to inject the Edge-to-Edge blurred background behind the Scaffold
-    Box(modifier = Modifier.fillMaxSize()) {
-        
-        // 1. DYNAMIC FULLSCREEN BLURRED BACKGROUND (Spotify Style)
-        if (isLyricsFullscreen) {
-            AlbumArtView(
-                filePath = song.filePath,
-                title = song.title,
-                artist = song.artist,
-                accentColor = accentColor,
-                modifier = Modifier
-                    .fillMaxSize()
-                    .blur(radius = 80.dp), // Heavy blur for glass effect
-                isCircular = false
-            )
-            // Dark overlay to make white lyrics easily readable
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(Color.Black.copy(alpha = 0.65f))
-            )
-        }
-
-        Scaffold(
-            containerColor = Color.Transparent,
-            topBar = {
-                if (!isLyricsFullscreen) {
-                    Row(
+    Scaffold(
+        containerColor = Color.Transparent,
+        topBar = {
+            if (!isLyricsFullscreen) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 8.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    IconButton(
+                        onClick = onCollapse,
                         modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 16.dp, vertical = 8.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
+                            .clip(CircleShape)
+                            .background(Color.White.copy(alpha = 0.08f))
+                            .testTag("player_collapse_button")
                     ) {
-                        IconButton(
-                            onClick = onCollapse,
-                            modifier = Modifier
-                                .clip(CircleShape)
-                                .background(Color.White.copy(alpha = 0.08f))
-                                .testTag("player_collapse_button")
-                        ) {
-                            Icon(
-                                imageVector = Icons.Filled.ExpandMore,
-                                contentDescription = "Collapse Player",
-                                tint = Color.White
-                            )
-                        }
-
-                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            Text(
-                                text = "شاشة المشغل النشط / Now Playing",
-                                color = Color.White,
-                                fontSize = 13.sp,
-                                fontWeight = FontWeight.Bold
-                            )
-                            Text(
-                                text = "المسار: ${song.albumName}",
-                                color = TextMuted,
-                                fontSize = 11.sp
-                            )
-                        }
-
-                        IconButton(
-                            onClick = { /* Checksum dialog */ },
-                            modifier = Modifier
-                                .clip(CircleShape)
-                                .background(Color.White.copy(alpha = 0.08f))
-                        ) {
-                            Icon(
-                                imageVector = Icons.Filled.Security,
-                                contentDescription = "File integrity info",
-                                tint = accentColor
-                            )
-                        }
+                        Icon(
+                            imageVector = Icons.Filled.ExpandMore,
+                            contentDescription = "Collapse Player",
+                            tint = Color.White
+                        )
                     }
-                } else {
-                    // Transparent Top Bar in Fullscreen Mode
-                    Row(
+
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text(
+                            text = "شاشة المشغل النشط / Now Playing",
+                            color = Color.White,
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Text(
+                            text = "المسار: ${song.albumName}",
+                            color = TextMuted,
+                            fontSize = 11.sp
+                        )
+                    }
+
+                    IconButton(
+                        onClick = { /* Checksum dialog can open here too */ },
                         modifier = Modifier
-                            .fillMaxWidth()
-                            .statusBarsPadding()
-                            .padding(horizontal = 16.dp, vertical = 10.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
+                            .clip(CircleShape)
+                            .background(Color.White.copy(alpha = 0.08f))
                     ) {
-                        IconButton(
-                            onClick = { isLyricsFullscreen = false },
-                            modifier = Modifier
-                                .clip(CircleShape)
-                                .background(Color.Transparent) // Removed background square
-                        ) {
-                            Icon(
-                                imageVector = Icons.Filled.ArrowBack, // Will auto-mirror in newer Compose versions if needed
-                                contentDescription = "Exit Fullscreen",
-                                tint = Color.White
-                            )
-                        }
+                        Icon(
+                            imageVector = Icons.Filled.Security,
+                            contentDescription = "File integrity info",
+                            tint = accentColor
+                        )
+                    }
+                }
+            } else {
+                // High Immersive minimal fullscreen bar
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .statusBarsPadding()
+                        .padding(horizontal = 16.dp, vertical = 10.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    IconButton(
+                        onClick = { isLyricsFullscreen = false },
+                        modifier = Modifier
+                            .clip(CircleShape)
+                            .background(Color.White.copy(alpha = 0.08f))
+                    ) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = "Exit Fullscreen",
+                            tint = Color.White
+                        )
+                    }
 
-                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            Text(
-                                text = song.title,
-                                color = Color.White,
-                                fontSize = 15.sp,
-                                fontWeight = FontWeight.Bold
-                            )
-                            Text(
-                                text = song.artist,
-                                color = Color.White.copy(alpha = 0.7f),
-                                fontSize = 12.sp
-                            )
-                        }
+                    // Floating text header
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text(
+                            text = song.title,
+                            color = Color.White,
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                        Text(
+                            text = song.artist,
+                            color = TextMuted,
+                            fontSize = 11.sp
+                        )
+                    }
 
-                        IconButton(
-                            onClick = { isTranslationActive = !isTranslationActive },
-                            modifier = Modifier
-                                .clip(CircleShape)
-                                .background(Color.Transparent) // Removed background square
-                        ) {
-                            Icon(
-                                imageVector = Icons.Filled.Translate,
-                                contentDescription = "Translate Lyrics",
-                                tint = if (isTranslationActive) accentColor else Color.White,
-                                modifier = Modifier.size(24.dp)
-                            )
-                        }
+                    // Translations toggle
+                    IconButton(
+                        onClick = { isTranslationActive = !isTranslationActive },
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(if (isTranslationActive) accentColor else Color.White.copy(alpha = 0.08f))
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.Translate,
+                            contentDescription = "Translate Lyrics",
+                            tint = if (isTranslationActive) Color.Black else Color.White,
+                            modifier = Modifier.size(20.dp)
+                        )
                     }
                 }
             }
-        ) { innerPadding ->
-            if (isLyricsFullscreen) {
-                // IMMERSIVE FULL-SCREEN LYRICS MODE
+        }
+    ) { innerPadding ->
+        if (isLyricsFullscreen) {
+            // IMMERSIVE FULL-SCREEN LYRICS MODE
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(innerPadding)
+                    .padding(horizontal = 20.dp, vertical = 10.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.SpaceBetween
+            ) {
+                // Standardise centering scroll synced lyrics container
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxWidth()
+                        .padding(bottom = 12.dp)
+                ) {
+                    SyncedLyricsScrollContainer(
+                        parsedLyrics = parsedLyrics,
+                        currentLyricIndex = currentLyricIndex,
+                        isTranslationActive = isTranslationActive,
+                        onLineClick = { timestamp ->
+                            viewModel.seekTo(timestamp)
+                        },
+                        modifier = Modifier.fillMaxSize()
+                    )
+                }
+
+                // COMPACT TRANSPARENT MINI PLAYER (at the bottom under fullscreen lyrics)
+                // Contains ONLY: slider (progress/seekbar), play/pause button, current/total time
                 Column(
                     modifier = Modifier
-                        .fillMaxSize()
-                        .padding(innerPadding)
-                        .padding(horizontal = 20.dp, vertical = 10.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.SpaceBetween
+                        .fillMaxWidth()
+                        .navigationBarsPadding()
+                        .glassmorphic(cornerRadius = 18.dp, alpha = 0.08f)
+                        .padding(horizontal = 16.dp, vertical = 12.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    Box(
+                    val duration = song.durationMs
+                    val posFloat = currentPosition.toFloat().coerceIn(0f, duration.toFloat())
+
+                    // Seek Slider bar
+                    Slider(
+                        value = posFloat,
+                        onValueChange = { viewModel.seekTo(it.toLong()) },
+                        valueRange = 0f..duration.toFloat(),
+                        colors = SliderDefaults.colors(
+                            thumbColor = accentColor,
+                            activeTrackColor = accentColor,
+                            inactiveTrackColor = Color.White.copy(alpha = 0.15f)
+                        ),
+                        modifier = Modifier.fillMaxWidth()
+                    )
+
+                    Row(
                         modifier = Modifier
-                            .weight(1f)
                             .fillMaxWidth()
-                            .padding(bottom = 12.dp)
+                            .padding(horizontal = 4.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        SyncedLyricsScrollContainer(
-                            parsedLyrics = parsedLyrics,
-                            currentLyricIndex = currentLyricIndex,
-                            isTranslationActive = isTranslationActive,
-                            onLineClick = { timestamp ->
-                                viewModel.seekTo(timestamp)
-                            },
-                            modifier = Modifier.fillMaxSize()
+                        Text(
+                            text = formatTime(currentPosition),
+                            color = TextMuted,
+                            fontSize = 11.sp
+                        )
+
+                        // Centered Play/Pause pill/circle button
+                        IconButton(
+                            onClick = { viewModel.togglePlayPause() },
+                            modifier = Modifier
+                                .size(48.dp)
+                                .clip(CircleShape)
+                                .background(Color.White)
+                        ) {
+                            Icon(
+                                imageVector = if (playbackState == PlaybackState.PLAYING) Icons.Filled.Pause else Icons.Filled.PlayArrow,
+                                contentDescription = "Play/Pause Toggle",
+                                tint = Color.Black,
+                                modifier = Modifier.size(24.dp)
+                            )
+                        }
+
+                        Text(
+                            text = formatTime(duration),
+                            color = TextMuted,
+                            fontSize = 11.sp
                         )
                     }
-
-                    // 2. TRANSPARENT FLOATING MINI PLAYER (Removed Glassmorphic box)
-                    Column(
+                }
+            }
+        } else {
+            // STANDARD DASHBOARD DISC MODE
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(innerPadding)
+                    .padding(horizontal = 20.dp, vertical = 10.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.SpaceBetween
+            ) {
+                // 1. Cover Disk Art + glow ring
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .aspectRatio(1f)
+                        .padding(24.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    // Backing rotating glass ring
+                    Box(
                         modifier = Modifier
-                            .fillMaxWidth()
-                            .navigationBarsPadding()
-                            .padding(horizontal = 8.dp, vertical = 12.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
-                        val duration = song.durationMs
-                        val posFloat = currentPosition.toFloat().coerceIn(0f, duration.toFloat())
+                            .fillMaxSize()
+                            .rotate(-activeDiskRotation)
+                            .border(
+                                width = 3.dp,
+                                brush = Brush.sweepGradient(
+                                    colors = listOf(accentColor, Color.Transparent, accentColor.copy(alpha = 0.3f), accentColor)
+                                ),
+                                shape = CircleShape
+                            )
+                    )
 
-                        Slider(
-                            value = posFloat,
-                            onValueChange = { viewModel.seekTo(it.toLong()) },
-                            valueRange = 0f..duration.toFloat(),
-                            colors = SliderDefaults.colors(
-                                thumbColor = Color.White,
-                                activeTrackColor = Color.White,
-                                inactiveTrackColor = Color.White.copy(alpha = 0.2f)
-                            ),
-                            modifier = Modifier.fillMaxWidth()
+                    // Disk shape Art with dynamic physical Album artwork loading!
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize(0.9f)
+                            .clip(CircleShape)
+                            .rotate(activeDiskRotation)
+                            .border(6.dp, Color.White.copy(alpha = 0.08f), CircleShape),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        AlbumArtView(
+                            filePath = song.filePath,
+                            title = song.title,
+                            artist = song.artist,
+                            accentColor = accentColor,
+                            modifier = Modifier.fillMaxSize(),
+                            isCircular = true
                         )
 
-                        Row(
+                        // Outer elegant physical vinyl-disk looking center core
+                        Box(
                             modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(horizontal = 8.dp),
+                                .size(64.dp)
+                                .clip(CircleShape)
+                                .background(Color.Black.copy(alpha = 0.45f))
+                                .border(1.dp, accentColor.copy(alpha = 0.5f), CircleShape),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Filled.Radio,
+                                contentDescription = null,
+                                tint = accentColor,
+                                modifier = Modifier.size(28.dp)
+                            )
+                        }
+
+                        // Playback wave indicators overlaying disk
+                        if (playbackState == PlaybackState.PLAYING) {
+                            MiniAudioVisualizerBars(accentColor)
+                        }
+                    }
+                }
+
+                // 2. Metadata (Song Info)
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Text(
+                        text = song.title,
+                        color = Color.White,
+                        fontSize = 22.sp,
+                        fontWeight = FontWeight.Bold,
+                        textAlign = TextAlign.Center,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        text = song.artist,
+                        color = TextMuted,
+                        fontSize = 14.sp,
+                        textAlign = TextAlign.Center,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+
+                // 3. Compact Lyrics Preview (only shown if NOT in fullscreen lyrics)
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(90.dp)
+                        .padding(vertical = 4.dp)
+                        .glassmorphic(cornerRadius = 14.dp, alpha = 0.08f)
+                        .clickable { isLyricsFullscreen = true }
+                        .padding(horizontal = 16.dp, vertical = 6.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Text(
-                                text = formatTime(currentPosition),
-                                color = Color.White.copy(alpha = 0.7f),
-                                fontSize = 12.sp
+                                text = "الكلمات المتزامنة / Lyrics Preview",
+                                color = accentColor.copy(alpha = 0.82f),
+                                fontSize = 10.sp,
+                                fontWeight = FontWeight.Bold
                             )
+                            Icon(
+                                imageVector = Icons.Filled.Fullscreen,
+                                contentDescription = "Expand Lyrics",
+                                tint = Color.White.copy(alpha = 0.6f),
+                                modifier = Modifier.size(14.dp)
+                            )
+                        }
 
-                            IconButton(
-                                onClick = { viewModel.togglePlayPause() },
-                                modifier = Modifier
-                                    .size(56.dp)
-                                    .clip(CircleShape)
-                                    .background(Color.White)
-                            ) {
-                                Icon(
-                                    imageVector = if (playbackState == PlaybackState.PLAYING) Icons.Filled.Pause else Icons.Filled.PlayArrow,
-                                    contentDescription = "Play/Pause Toggle",
-                                    tint = Color.Black,
-                                    modifier = Modifier.size(32.dp)
-                                )
-                            }
+                        Spacer(modifier = Modifier.height(6.dp))
 
+                        val activeLineText = if (parsedLyrics.isEmpty()) {
+                            "لا توجد كلمات متاحة لهذه الأغنية"
+                        } else if (currentLyricIndex in parsedLyrics.indices) {
+                            parsedLyrics[currentLyricIndex].text
+                        } else {
+                            "•••"
+                        }
+
+                        Text(
+                            text = activeLineText,
+                            color = Color.White,
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Bold,
+                            textAlign = TextAlign.Center,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.animateContentSize()
+                        )
+
+                        val nextLineText = if (currentLyricIndex + 1 in parsedLyrics.indices) {
+                            parsedLyrics[currentLyricIndex + 1].text
+                        } else {
+                            ""
+                        }
+
+                        if (nextLineText.isNotEmpty()) {
                             Text(
-                                text = formatTime(duration),
-                                color = Color.White.copy(alpha = 0.7f),
-                                fontSize = 12.sp
+                                text = nextLineText,
+                                color = Color.White.copy(alpha = 0.45f),
+                                fontSize = 11.sp,
+                                textAlign = TextAlign.Center,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
                             )
                         }
                     }
                 }
-            } else {
-                // STANDARD DASHBOARD DISC MODE
-                Column(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(innerPadding)
-                        .padding(horizontal = 20.dp, vertical = 10.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.SpaceBetween
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .weight(1f)
-                            .aspectRatio(1f)
-                            .padding(24.dp),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .rotate(-activeDiskRotation)
-                                .border(
-                                    width = 3.dp,
-                                    brush = Brush.sweepGradient(
-                                        colors = listOf(accentColor, Color.Transparent, accentColor.copy(alpha = 0.3f), accentColor)
-                                    ),
-                                    shape = CircleShape
-                                )
-                        )
 
-                        Box(
-                            modifier = Modifier
-                                .fillMaxSize(0.9f)
-                                .clip(CircleShape)
-                                .rotate(activeDiskRotation)
-                                .border(6.dp, Color.White.copy(alpha = 0.08f), CircleShape),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            AlbumArtView(
-                                filePath = song.filePath,
-                                title = song.title,
-                                artist = song.artist,
-                                accentColor = accentColor,
-                                modifier = Modifier.fillMaxSize(),
-                                isCircular = true
-                            )
+                // 4. Timeline Slider block
+                Column(modifier = Modifier.fillMaxWidth()) {
+                    val duration = song.durationMs
+                    val posFloat = currentPosition.toFloat().coerceIn(0f, duration.toFloat())
 
-                            Box(
-                                modifier = Modifier
-                                    .size(64.dp)
-                                    .clip(CircleShape)
-                                    .background(Color.Black.copy(alpha = 0.45f))
-                                    .border(1.dp, accentColor.copy(alpha = 0.5f), CircleShape),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Filled.Radio,
-                                    contentDescription = null,
-                                    tint = accentColor,
-                                    modifier = Modifier.size(28.dp)
-                                )
-                            }
-
-                            if (playbackState == PlaybackState.PLAYING) {
-                                MiniAudioVisualizerBars(accentColor)
-                            }
-                        }
-                    }
-
-                    Column(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
-                        Text(
-                            text = song.title,
-                            color = Color.White,
-                            fontSize = 22.sp,
-                            fontWeight = FontWeight.Bold,
-                            textAlign = TextAlign.Center,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
-                        )
-                        Spacer(modifier = Modifier.height(4.dp))
-                        Text(
-                            text = song.artist,
-                            color = TextMuted,
-                            fontSize = 14.sp,
-                            textAlign = TextAlign.Center,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
-                        )
-                    }
-
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(90.dp)
-                            .padding(vertical = 4.dp)
-                            .glassmorphic(cornerRadius = 14.dp, alpha = 0.08f)
-                            .clickable { isLyricsFullscreen = true }
-                            .padding(horizontal = 16.dp, vertical = 6.dp),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Text(
-                                    text = "الكلمات المتزامنة / Lyrics Preview",
-                                    color = accentColor.copy(alpha = 0.82f),
-                                    fontSize = 10.sp,
-                                    fontWeight = FontWeight.Bold
-                                )
-                                Icon(
-                                    imageVector = Icons.Filled.Fullscreen,
-                                    contentDescription = "Expand Lyrics",
-                                    tint = Color.White.copy(alpha = 0.6f),
-                                    modifier = Modifier.size(14.dp)
-                                )
-                            }
-
-                            Spacer(modifier = Modifier.height(6.dp))
-
-                            val activeLineText = if (parsedLyrics.isEmpty()) {
-                                "لا توجد كلمات متاحة لهذه الأغنية"
-                            } else if (currentLyricIndex in parsedLyrics.indices) {
-                                parsedLyrics[currentLyricIndex].text
-                            } else {
-                                "•••"
-                            }
-
-                            Text(
-                                text = activeLineText,
-                                color = Color.White,
-                                fontSize = 14.sp,
-                                fontWeight = FontWeight.Bold,
-                                textAlign = TextAlign.Center,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis,
-                                modifier = Modifier.animateContentSize()
-                            )
-
-                            val nextLineText = if (currentLyricIndex + 1 in parsedLyrics.indices) {
-                                parsedLyrics[currentLyricIndex + 1].text
-                            } else {
-                                ""
-                            }
-
-                            if (nextLineText.isNotEmpty()) {
-                                Text(
-                                    text = nextLineText,
-                                    color = Color.White.copy(alpha = 0.45f),
-                                    fontSize = 11.sp,
-                                    textAlign = TextAlign.Center,
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis
-                                )
-                            }
-                        }
-                    }
-
-                    Column(modifier = Modifier.fillMaxWidth()) {
-                        val duration = song.durationMs
-                        val posFloat = currentPosition.toFloat().coerceIn(0f, duration.toFloat())
-
-                        Slider(
-                            value = posFloat,
-                            onValueChange = { viewModel.seekTo(it.toLong()) },
-                            valueRange = 0f..duration.toFloat(),
-                            colors = SliderDefaults.colors(
-                                thumbColor = accentColor,
-                                activeTrackColor = accentColor,
-                                inactiveTrackColor = Color.White.copy(alpha = 0.15f)
-                            ),
-                            modifier = Modifier.testTag("playback_slider")
-                        )
-
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(horizontal = 4.dp),
-                            horizontalArrangement = Arrangement.SpaceBetween
-                        ) {
-                            Text(
-                                text = formatTime(currentPosition),
-                                color = TextMuted,
-                                fontSize = 11.sp
-                            )
-                            Text(
-                                text = formatTime(duration),
-                                color = TextMuted,
-                                fontSize = 11.sp
-                            )
-                        }
-                    }
+                    Slider(
+                        value = posFloat,
+                        onValueChange = { viewModel.seekTo(it.toLong()) },
+                        valueRange = 0f..duration.toFloat(),
+                        colors = SliderDefaults.colors(
+                            thumbColor = accentColor,
+                            activeTrackColor = accentColor,
+                            inactiveTrackColor = Color.White.copy(alpha = 0.15f)
+                        ),
+                        modifier = Modifier.testTag("playback_slider")
+                    )
 
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(vertical = 8.dp),
-                        horizontalArrangement = Arrangement.SpaceEvenly,
-                        verticalAlignment = Alignment.CenterVertically
+                            .padding(horizontal = 4.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween
                     ) {
-                        IconButton(onClick = { viewModel.toggleShuffle() }) {
-                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                Icon(
-                                    imageVector = Icons.Filled.Shuffle,
-                                    contentDescription = "Shuffle",
-                                    tint = if (isShuffleEnabled) NeonAccent else Color.White.copy(alpha = 0.6f)
-                                )
-                                if (isShuffleEnabled) {
-                                    Box(
-                                        modifier = Modifier
-                                            .size(4.dp)
-                                            .clip(CircleShape)
-                                            .background(NeonAccent)
-                                    )
-                                }
-                            }
-                        }
+                        Text(
+                            text = formatTime(currentPosition),
+                            color = TextMuted,
+                            fontSize = 11.sp
+                        )
+                        Text(
+                            text = formatTime(duration),
+                            color = TextMuted,
+                            fontSize = 11.sp
+                        )
+                    }
+                }
 
-                        IconButton(
-                            onClick = { viewModel.previous() },
-                            modifier = Modifier.testTag("player_prev")
-                        ) {
+                // 5. Control Deck
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 8.dp),
+                    horizontalArrangement = Arrangement.SpaceEvenly,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    IconButton(onClick = { viewModel.toggleShuffle() }) {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
                             Icon(
-                                imageVector = Icons.Filled.SkipPrevious,
-                                contentDescription = "Previous Track",
-                                tint = Color.White,
-                                modifier = Modifier.size(36.dp)
+                                imageVector = Icons.Filled.Shuffle,
+                                contentDescription = "Shuffle",
+                                tint = if (isShuffleEnabled) NeonAccent else Color.White.copy(alpha = 0.6f)
                             )
-                        }
-
-                        Box(contentAlignment = Alignment.Center) {
-                            Box(
-                                modifier = Modifier
-                                    .size(68.dp)
-                                    .clip(CircleShape)
-                                    .background(
-                                        Brush.radialGradient(
-                                            colors = listOf(accentColor.copy(alpha = 0.4f), Color.Transparent)
-                                        )
-                                    )
-                            )
-
-                            IconButton(
-                                onClick = { viewModel.togglePlayPause() },
-                                modifier = Modifier
-                                    .size(56.dp)
-                                    .clip(CircleShape)
-                                    .background(Color.White)
-                                    .testTag("player_play_pause")
-                            ) {
-                                Icon(
-                                    imageVector = if (playbackState == PlaybackState.PLAYING) Icons.Filled.Pause else Icons.Filled.PlayArrow,
-                                    contentDescription = "Play Pause Toggle",
-                                    tint = Color.Black,
-                                    modifier = Modifier.size(32.dp)
+                            if (isShuffleEnabled) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(4.dp)
+                                        .clip(CircleShape)
+                                        .background(NeonAccent)
                                 )
-                            }
-                        }
-
-                        IconButton(
-                            onClick = { viewModel.next() },
-                            modifier = Modifier.testTag("player_next")
-                        ) {
-                            Icon(
-                                imageVector = Icons.Filled.SkipNext,
-                                contentDescription = "Next Track",
-                                tint = Color.White,
-                                modifier = Modifier.size(36.dp)
-                            )
-                        }
-
-                        IconButton(onClick = { viewModel.toggleRepeatMode() }) {
-                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                Icon(
-                                    imageVector = when (repeatMode) {
-                                        RepeatMode.OFF -> Icons.Filled.Repeat
-                                        RepeatMode.ALL -> Icons.Filled.Repeat
-                                        RepeatMode.ONE -> Icons.Filled.RepeatOne
-                                    },
-                                    contentDescription = "Repeat",
-                                    tint = if (repeatMode != RepeatMode.OFF) accentColor else Color.White.copy(alpha = 0.6f)
-                                )
-                                if (repeatMode != RepeatMode.OFF) {
-                                    Box(
-                                        modifier = Modifier
-                                            .size(4.dp)
-                                            .clip(CircleShape)
-                                            .background(accentColor)
-                                    )
-                                }
                             }
                         }
                     }
 
                     IconButton(
-                        onClick = { viewModel.toggleFavorite(song) },
-                        modifier = Modifier
-                            .clip(CircleShape)
-                            .background(Color.White.copy(alpha = 0.06f))
+                        onClick = { viewModel.previous() },
+                        modifier = Modifier.testTag("player_prev")
                     ) {
                         Icon(
-                            imageVector = if (song.isFavorite) Icons.Filled.Favorite else Icons.Filled.FavoriteBorder,
-                            contentDescription = "Favorite Song",
-                            tint = if (song.isFavorite) Color(0xFFFF5722) else Color.White
+                            imageVector = Icons.Filled.SkipPrevious,
+                            contentDescription = "Previous Track",
+                            tint = Color.White,
+                            modifier = Modifier.size(36.dp)
                         )
                     }
+
+                    Box(contentAlignment = Alignment.Center) {
+                        Box(
+                            modifier = Modifier
+                                .size(68.dp)
+                                .clip(CircleShape)
+                                .background(
+                                    Brush.radialGradient(
+                                        colors = listOf(accentColor.copy(alpha = 0.4f), Color.Transparent)
+                                    )
+                                )
+                        )
+
+                        IconButton(
+                            onClick = { viewModel.togglePlayPause() },
+                            modifier = Modifier
+                                .size(56.dp)
+                                .clip(CircleShape)
+                                .background(Color.White)
+                                .testTag("player_play_pause")
+                        ) {
+                            Icon(
+                                imageVector = if (playbackState == PlaybackState.PLAYING) Icons.Filled.Pause else Icons.Filled.PlayArrow,
+                                contentDescription = "Play Pause Toggle",
+                                tint = Color.Black,
+                                modifier = Modifier.size(32.dp)
+                            )
+                        }
+                    }
+
+                    IconButton(
+                        onClick = { viewModel.next() },
+                        modifier = Modifier.testTag("player_next")
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.SkipNext,
+                            contentDescription = "Next Track",
+                            tint = Color.White,
+                            modifier = Modifier.size(36.dp)
+                        )
+                    }
+
+                    IconButton(onClick = { viewModel.toggleRepeatMode() }) {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Icon(
+                                imageVector = when (repeatMode) {
+                                    RepeatMode.OFF -> Icons.Filled.Repeat
+                                    RepeatMode.ALL -> Icons.Filled.Repeat
+                                    RepeatMode.ONE -> Icons.Filled.RepeatOne
+                                },
+                                contentDescription = "Repeat",
+                                tint = if (repeatMode != RepeatMode.OFF) accentColor else Color.White.copy(alpha = 0.6f)
+                            )
+                            if (repeatMode != RepeatMode.OFF) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(4.dp)
+                                        .clip(CircleShape)
+                                        .background(accentColor)
+                                )
+                            }
+                        }
+                    }
+                }
+
+                // 6. Favorite toggle heart button
+                IconButton(
+                    onClick = { viewModel.toggleFavorite(song) },
+                    modifier = Modifier
+                        .clip(CircleShape)
+                        .background(Color.White.copy(alpha = 0.06f))
+                ) {
+                    Icon(
+                        imageVector = if (song.isFavorite) Icons.Filled.Favorite else Icons.Filled.FavoriteBorder,
+                        contentDescription = "Favorite Song",
+                        tint = if (song.isFavorite) Color(0xFFFF5722) else Color.White
+                    )
                 }
             }
         }
@@ -644,6 +639,7 @@ fun SyncedLyricsScrollContainer(
     val listState = rememberLazyListState()
     val coroutineScope = rememberCoroutineScope()
 
+    // Smooth scrolls the currently active lyric line into the center of the viewport whenever index shifts!
     LaunchedEffect(currentLyricIndex) {
         if (currentLyricIndex in parsedLyrics.indices) {
             coroutineScope.launch {
@@ -655,8 +651,11 @@ fun SyncedLyricsScrollContainer(
         }
     }
 
-    // 3. REMOVED glassmorphic and padding container to make lyrics float naturally over the background
-    Box(modifier = modifier) {
+    Box(
+        modifier = modifier
+            .glassmorphic(cornerRadius = 16.dp, alpha = 0.06f)
+            .padding(12.dp)
+    ) {
         if (parsedLyrics.isEmpty()) {
             Box(
                 modifier = Modifier.fillMaxSize(),
@@ -664,9 +663,10 @@ fun SyncedLyricsScrollContainer(
             ) {
                 Text(
                     text = "لا توجد كلمات متزامنة متاحة لهذه الأغنية\nNo interactive lyrics available for this song",
-                    color = Color.White.copy(alpha = 0.6f),
-                    fontSize = 16.sp,
+                    color = TextMuted,
+                    fontSize = 14.sp,
                     textAlign = TextAlign.Center,
+                    fontWeight = FontWeight.Bold,
                     modifier = Modifier.padding(16.dp)
                 )
             }
@@ -674,8 +674,8 @@ fun SyncedLyricsScrollContainer(
             LazyColumn(
                 state = listState,
                 modifier = Modifier.fillMaxSize(),
-                contentPadding = PaddingValues(vertical = 180.dp), // Increased padding for perfect center alignment
-                verticalArrangement = Arrangement.spacedBy(24.dp), // More space between lines
+                contentPadding = PaddingValues(vertical = 140.dp), // Spacious vertical padding for pure centering visuals
+                verticalArrangement = Arrangement.spacedBy(20.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 itemsIndexed(parsedLyrics) { index, line ->
@@ -699,20 +699,20 @@ fun LyricLineRow(
     isTranslationActive: Boolean,
     onClick: () -> Unit
 ) {
-    // 4. LYRICS TYPOGRAPHY RE-DESIGN (Bigger, Bolder, and Transparent when inactive)
     val scale by animateFloatAsState(
-        targetValue = if (isActive) 1.15f else 1.0f, // Subtle scale
+        targetValue = if (isActive) 1.15f else 0.95f,
         animationSpec = spring(stiffness = Spring.StiffnessLow),
         label = "ScaleLyric"
     )
 
     val color by animateColorAsState(
-        targetValue = if (isActive) Color.White else Color.White.copy(alpha = 0.4f), // More transparent when inactive
+        targetValue = if (isActive) Color.White else Color.White.copy(alpha = 0.35f),
         label = "ColorLyric"
     )
 
-    val fontWeight = if (isActive) FontWeight.Bold else FontWeight.Medium
+    val fontWeight = if (isActive) FontWeight.ExtraBold else FontWeight.Normal
 
+    // Determine lyrics translation display text
     val displayText = if (isTranslationActive) {
         generateLrcTranslation(line.text)
     } else {
@@ -722,14 +722,15 @@ fun LyricLineRow(
     Column(
         modifier = Modifier
             .fillMaxWidth()
+            .clip(RoundedCornerShape(8.dp))
             .clickable { onClick() }
-            .padding(horizontal = 16.dp, vertical = 4.dp),
+            .padding(horizontal = 12.dp, vertical = 8.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Text(
             text = displayText,
             color = color,
-            fontSize = 22.sp, // Increased base font size
+            fontSize = 18.sp,
             fontWeight = fontWeight,
             textAlign = TextAlign.Center,
             modifier = Modifier.scale(scale)
@@ -741,6 +742,7 @@ fun LyricLineRow(
 fun BoxScope.MiniAudioVisualizerBars(color: Color) {
     val infiniteTransition = rememberInfiniteTransition(label = "Visualizer")
     
+    // Animate 3 visual bars pulsing differently
     val heightScale1 by infiniteTransition.animateFloat(
         initialValue = 0.15f,
         targetValue = 0.85f,
@@ -811,6 +813,9 @@ private fun formatTime(ms: Long): String {
     return String.format("%02d:%02d", min, sec)
 }
 
+/**
+ * Generate instantaneous poetic translations for demo items in real time
+ */
 private fun generateLrcTranslation(arabicLyricText: String): String {
     return when {
         arabicLyricText.contains("عين سحرية", ignoreCase = true) -> "Magic eye, observing the future and light..."
@@ -825,4 +830,3 @@ private fun generateLrcTranslation(arabicLyricText: String): String {
         else -> "Translating: \"$arabicLyricText\"..."
     }
 }
-

@@ -259,7 +259,7 @@ fun IntegrityVerificationDialog(song: SongEntity, onDismiss: () -> Unit) {
                     )
                 }
 
-                Divider(
+                HorizontalDivider(
                     color = Color.White.copy(alpha = 0.15f),
                     modifier = Modifier.padding(vertical = 12.dp)
                 )

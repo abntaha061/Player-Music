@@ -108,34 +108,50 @@ class AudioPlayerManager(private val context: Context) {
     }
 
     fun pause() {
-        if (mediaPlayer?.isPlaying == true) {
-            mediaPlayer?.pause()
-            _playbackState.value = PlaybackState.PAUSED
-            stopPositionTracker()
+        try {
+            if (mediaPlayer?.isPlaying == true) {
+                mediaPlayer?.pause()
+                _playbackState.value = PlaybackState.PAUSED
+                stopPositionTracker()
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed pause MediaPlayer: ${e.message}", e)
         }
     }
 
     fun resume() {
-        if (_playbackState.value == PlaybackState.PAUSED) {
-            mediaPlayer?.start()
-            _playbackState.value = PlaybackState.PLAYING
-            startPositionTracker()
-        } else if (_currentSong.value != null) {
-            play(_currentSong.value!!)
+        try {
+            if (_playbackState.value == PlaybackState.PAUSED) {
+                mediaPlayer?.start()
+                _playbackState.value = PlaybackState.PLAYING
+                startPositionTracker()
+            } else if (_currentSong.value != null) {
+                play(_currentSong.value!!)
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed resume MediaPlayer: ${e.message}", e)
         }
     }
 
     fun stop() {
-        mediaPlayer?.stop()
-        _playbackState.value = PlaybackState.STOPPED
-        stopPositionTracker()
-        _currentPosition.value = 0L
+        try {
+            mediaPlayer?.stop()
+            _playbackState.value = PlaybackState.STOPPED
+            stopPositionTracker()
+            _currentPosition.value = 0L
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed stop MediaPlayer: ${e.message}", e)
+        }
     }
 
     fun seekTo(positionMs: Long) {
-        mediaPlayer?.let {
-            it.seekTo(positionMs.toInt())
-            _currentPosition.value = positionMs
+        try {
+            mediaPlayer?.let {
+                it.seekTo(positionMs.toInt())
+                _currentPosition.value = positionMs
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed seekTo MediaPlayer: ${e.message}", e)
         }
     }
 
@@ -231,10 +247,14 @@ class AudioPlayerManager(private val context: Context) {
         stopPositionTracker()
         positionTrackerJob = coroutineScope.launch {
             while (true) {
-                mediaPlayer?.let {
-                    if (it.isPlaying) {
-                        _currentPosition.value = it.currentPosition.toLong()
+                try {
+                    mediaPlayer?.let { player ->
+                        if (player.isPlaying) {
+                            _currentPosition.value = player.currentPosition.toLong()
+                        }
                     }
+                } catch (e: Exception) {
+                    Log.e(TAG, "Error checking media player isPlaying state: ${e.message}")
                 }
                 delay(200)
             }
