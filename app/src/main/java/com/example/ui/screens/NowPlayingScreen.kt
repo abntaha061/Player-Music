@@ -825,3 +825,4 @@ private fun generateLrcTranslation(arabicLyricText: String): String {
         else -> "Translating: \"$arabicLyricText\"..."
     }
 }
+
