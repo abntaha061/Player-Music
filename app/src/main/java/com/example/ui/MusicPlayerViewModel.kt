@@ -21,6 +21,7 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
@@ -42,6 +43,23 @@ class MusicPlayerViewModel(application: Application) : AndroidViewModel(applicat
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     val mostPlayed: StateFlow<List<SongEntity>> = repository.mostPlayed
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    val topArtists: StateFlow<List<ArtistStats>> = allSongs
+        .map { songs ->
+            songs.groupBy { it.artist }
+                .map { (artistName, artistSongs) ->
+                    val totalPlayCount = artistSongs.sumOf { it.playCount }
+                    ArtistStats(
+                        name = artistName,
+                        playCount = totalPlayCount,
+                        songCount = artistSongs.size,
+                        color = PaletteHelper.getDeterministicColor(artistName, "artist")
+                    )
+                }
+                .sortedWith(compareByDescending<ArtistStats> { it.playCount }.thenByDescending { it.songCount })
+                .take(6)
+        }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     // Player state exposed from manager
@@ -88,11 +106,7 @@ class MusicPlayerViewModel(application: Application) : AndroidViewModel(applicat
     init {
         // Wire up playlist completion increments
         playerManager.onTrackFinishedListener = {
-            viewModelScope.launch(Dispatchers.IO) {
-                currentSong.value?.let { track ->
-                    repository.incrementPlayCount(track.filePath)
-                }
-            }
+            // Handled via smart listening threshold tracker
         }
 
         // Set up initial lyrics parsing hook & dynamic background palette analyzer
@@ -155,10 +169,50 @@ class MusicPlayerViewModel(application: Application) : AndroidViewModel(applicat
             }
         }
 
+        // Smart Listening Threshold Tracker Logic
+        var lastCountedFilePath: String? = null
+        var hasCountedCurrentPlay = false
+
+        viewModelScope.launch {
+            currentSong.collect { song ->
+                if (song != null) {
+                    if (song.filePath != lastCountedFilePath) {
+                        hasCountedCurrentPlay = false
+                        lastCountedFilePath = song.filePath
+                    }
+                } else {
+                    hasCountedCurrentPlay = false
+                    lastCountedFilePath = null
+                }
+            }
+        }
+
+        viewModelScope.launch {
+            currentPosition.collect { position ->
+                val song = currentSong.value
+                val isPlaying = playbackState.value == PlaybackState.PLAYING
+                if (song != null && isPlaying && !hasCountedCurrentPlay) {
+                    val threshold = minOf(30000L, (song.durationMs * 0.20).toLong())
+                    if (position >= threshold && threshold > 0) {
+                        hasCountedCurrentPlay = true
+                        viewModelScope.launch(Dispatchers.IO) {
+                            repository.incrementPlayCount(song.filePath)
+                            Log.d(TAG, "Threshold met for ${song.title}: $position ms >= $threshold ms. play_count incremented on Dispatchers.IO.")
+                        }
+                    }
+                }
+            }
+        }
+
         // Scan storage on startup to fetch real local device files
         viewModelScope.launch {
-            val count = repository.scanLocalMusic()
-            Log.d(TAG, "Startup scan complete. Found $count local music files.")
+            try {
+                repository.performSyncAndCleanup()
+                val count = repository.scanLocalMusic()
+                Log.d(TAG, "Startup scan complete. Found $count local music files.")
+            } catch (e: Exception) {
+                Log.e(TAG, "Startup sync/scan failed: ${e.message}", e)
+            }
         }
     }
 
@@ -166,9 +220,6 @@ class MusicPlayerViewModel(application: Application) : AndroidViewModel(applicat
         viewModelScope.launch {
             playerManager.setPlaylist(currentList, song)
             playerManager.play(song)
-            withContextIO {
-                repository.incrementPlayCount(song.filePath)
-            }
         }
     }
 
@@ -254,3 +305,10 @@ class MusicPlayerViewModel(application: Application) : AndroidViewModel(applicat
         playerManager.release()
     }
 }
+
+data class ArtistStats(
+    val name: String,
+    val playCount: Int,
+    val songCount: Int,
+    val color: Color
+)

@@ -32,6 +32,29 @@ class SongRepository(
         songDao.toggleFavorite(filePath, isFavorite)
     }
 
+    suspend fun deleteSongByPath(filePath: String) {
+        songDao.deleteSongByPath(filePath)
+    }
+
+    suspend fun performSyncAndCleanup() = withContext(Dispatchers.IO) {
+        Log.d(TAG, "Starting database sync and cleanup...")
+        try {
+            val dbSongs = songDao.getAllSongsDirect()
+            var deletedCount = 0
+            for (song in dbSongs) {
+                val file = File(song.filePath)
+                if (!file.exists()) {
+                    songDao.deleteSongByPath(song.filePath)
+                    deletedCount++
+                    Log.d(TAG, "Deleted missing file record from Room database: ${song.filePath}")
+                }
+            }
+            Log.d(TAG, "Database sync & cleanup complete. Removed $deletedCount records.")
+        } catch (e: Exception) {
+            Log.e(TAG, "Error performing database sync & cleanup: ${e.message}", e)
+        }
+    }
+
     suspend fun getSongByPath(path: String) = songDao.getSongByPath(path)
 
     /**

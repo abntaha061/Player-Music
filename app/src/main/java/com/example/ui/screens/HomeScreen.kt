@@ -44,6 +44,7 @@ fun HomeScreen(
     val favorites by viewModel.favoriteSongs.collectAsState()
     val rawRecent by viewModel.recentlyPlayed.collectAsState()
     val rawMostPlay by viewModel.mostPlayed.collectAsState()
+    val topArtists by viewModel.topArtists.collectAsState()
 
     // Ensure we filter out only valid files or use all scanned
     val recentSongs = rawRecent
@@ -153,19 +154,23 @@ fun HomeScreen(
             modifier = Modifier.padding(bottom = 12.dp)
         )
 
-        // Gather distinct artists
-        val artists = listOf(
-            ArtistMock("ألوان النور", "موسيقى تطلع وسلام", Color(0xFF00ADB5)),
-            ArtistMock("لحن الهدوء الممزوج", "تأثيرات ضبابية", Color(0xFFBD83FF)),
-            ArtistMock("نبضات الكوكب", "سينثسايزر متزامن", Color(0xFFFF5722)),
-            ArtistMock("مكتبة كلاسيك", "ألحان الفولك", Color(0xFF673AB7))
-        )
+        // Gather dynamic top artists from smart stats tracker
+        val artistsToDisplay = if (topArtists.isNotEmpty()) {
+            topArtists
+        } else {
+            // fallback mock if library is not yet populated
+            listOf(
+                com.example.ui.ArtistStats("ألوان النور", playCount = 0, songCount = 1, color = Color(0xFF00ADB5)),
+                com.example.ui.ArtistStats("لحن الهدوء الممزوج", playCount = 0, songCount = 1, color = Color(0xFFBD83FF)),
+                com.example.ui.ArtistStats("نبضات الكوكب", playCount = 0, songCount = 1, color = Color(0xFFFF5722))
+            )
+        }
 
         LazyRow(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            items(artists) { artist ->
+            items(artistsToDisplay) { artist ->
                 Column(
                     modifier = Modifier
                         .width(100.dp)
@@ -198,15 +203,15 @@ fun HomeScreen(
                     Text(
                         text = artist.name,
                         color = Color.White,
-                        fontSize = 13.sp,
+                        fontSize = 12.sp,
                         fontWeight = FontWeight.SemiBold,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
                     Text(
-                        text = artist.genre,
+                        text = "${artist.songCount} مسار • ${artist.playCount} تشغيل",
                         color = TextMuted,
-                        fontSize = 11.sp,
+                        fontSize = 10.sp,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )

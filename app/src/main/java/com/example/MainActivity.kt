@@ -1,5 +1,6 @@
 package com.example
 
+import android.graphics.Bitmap
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
@@ -78,6 +79,7 @@ fun MainAppScaffold(musicViewModel: MusicPlayerViewModel = viewModel()) {
     val currentSong by musicViewModel.currentSong.collectAsState()
     val playbackState by musicViewModel.playbackState.collectAsState()
     val activeColor by musicViewModel.trackDominantColor.collectAsState()
+    val ambientCover by musicViewModel.trackAmbientCover.collectAsState()
 
     // System Back Press Handler inside Jetpack Compose:
     // If Now Playing is expanded, collapse it first.
@@ -118,6 +120,7 @@ fun MainAppScaffold(musicViewModel: MusicPlayerViewModel = viewModel()) {
                                 artist = currentSong!!.artist,
                                 isPlaying = playbackState == PlaybackState.PLAYING,
                                 activeColor = activeColor,
+                                albumArt = ambientCover,
                                 onRowClick = { isPlayerExpanded = true },
                                 onPlayPauseClick = { musicViewModel.togglePlayPause() },
                                 onNextClick = { musicViewModel.next() }
@@ -392,6 +395,7 @@ fun MiniAudioController(
     artist: String,
     isPlaying: Boolean,
     activeColor: Color,
+    albumArt: Bitmap?,
     onRowClick: () -> Unit,
     onPlayPauseClick: () -> Unit,
     onNextClick: () -> Unit
@@ -415,12 +419,21 @@ fun MiniAudioController(
                     .background(Color.White.copy(alpha = 0.08f)),
                 contentAlignment = Alignment.Center
             ) {
-                Icon(
-                    imageVector = Icons.Filled.MusicNote,
-                    contentDescription = null,
-                    tint = activeColor,
-                    modifier = Modifier.size(24.dp)
-                )
+                if (albumArt != null) {
+                    Image(
+                        bitmap = albumArt.asImageBitmap(),
+                        contentDescription = "Mini Player Album Art",
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier.fillMaxSize()
+                    )
+                } else {
+                    Icon(
+                        imageVector = Icons.Filled.MusicNote,
+                        contentDescription = null,
+                        tint = activeColor,
+                        modifier = Modifier.size(24.dp)
+                    )
+                }
             }
 
             Spacer(modifier = Modifier.width(12.dp))

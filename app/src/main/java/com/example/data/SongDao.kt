@@ -30,6 +30,9 @@ interface SongDao {
     @Update
     suspend fun updateSong(song: SongEntity)
 
+    @Query("SELECT * FROM songs")
+    suspend fun getAllSongsDirect(): List<SongEntity>
+
     @Query("SELECT * FROM songs WHERE filePath = :path LIMIT 1")
     suspend fun getSongByPath(path: String): SongEntity?
 
@@ -38,6 +41,9 @@ interface SongDao {
 
     @Query("UPDATE songs SET isFavorite = :isFavorite WHERE filePath = :filePath")
     suspend fun toggleFavorite(filePath: String, isFavorite: Boolean)
+
+    @Query("DELETE FROM songs WHERE filePath = :filePath")
+    suspend fun deleteSongByPath(filePath: String)
 
     @Query("DELETE FROM songs")
     suspend fun clearAll()
