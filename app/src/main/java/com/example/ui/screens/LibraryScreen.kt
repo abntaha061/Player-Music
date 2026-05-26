@@ -136,7 +136,6 @@ fun LibraryScreen(viewModel: MusicPlayerViewModel) {
             }
         }
 
-        Spacer(modifier = Modifier.height(80.dp)) // Avoid Mini Player overlap
     }
 
     // Song Info and Cryptographic Hash integrity Dialog

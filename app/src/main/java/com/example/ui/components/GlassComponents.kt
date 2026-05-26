@@ -31,6 +31,10 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
+import androidx.compose.foundation.Image
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.draw.blur
+import androidx.compose.ui.draw.BlurredEdgeTreatment
 import com.example.ui.MusicPlayerViewModel
 import com.example.ui.theme.GlassBg
 import com.example.ui.theme.GlassBorder
@@ -109,68 +113,73 @@ fun AmbientGlassBackground(
         modifier = Modifier
             .fillMaxSize()
             .background(SpaceBlack)
-            .drawBehind {
-                val width = size.width
-                val height = size.height
-
-                // 1. Draw scaled-down album art representing dynamic blurred backdrop
-                ambientCover?.let { bitmap ->
-                    try {
-                        drawImage(
-                            image = bitmap.asImageBitmap(),
-                            dstSize = IntSize(width.toInt(), height.toInt()),
-                            alpha = 0.45f // Solid rich color blend from original artwork
-                        )
-                    } catch (e: Exception) {
-                        // fallback smoothly
-                    }
-                }
-
-                // 2. Glowing dynamic dominant light bubble
-                drawCircle(
-                    brush = Brush.radialGradient(
-                        colors = listOf(
-                            animatedDominant.copy(alpha = 0.35f),
-                            animatedDominant.copy(alpha = 0.12f),
-                            Color.Transparent
-                        ),
-                        center = Offset(width * 0.25f, height * 0.3f),
-                        radius = width * pulseScale1 * 2f
-                    )
-                )
-
-                // 3. Glowing dynamic vibrant sibling light bubble
-                drawCircle(
-                    brush = Brush.radialGradient(
-                        colors = listOf(
-                            animatedVibrant.copy(alpha = 0.38f),
-                            animatedVibrant.copy(alpha = 0.08f),
-                            Color.Transparent
-                        ),
-                        center = Offset(width * 0.8f, height * 0.75f),
-                        radius = width * pulseScale2 * 2.5f
-                    )
-                )
-
-                // 4. Subtle center deep accent
-                drawCircle(
-                    brush = Brush.radialGradient(
-                        colors = listOf(
-                            animatedDominant.copy(alpha = 0.18f),
-                            animatedVibrant.copy(alpha = 0.05f),
-                            Color.Transparent
-                        ),
-                        center = Offset(width * 0.5f, height * 0.5f),
-                        radius = width * 0.35f
-                    )
-                )
-
-                // 5. Heavy dark overlay (65%) to secure 100% white-crisp contrast and excellent readability
-                drawRect(
-                    color = SpaceBlack.copy(alpha = 0.65f)
-                )
-            }
     ) {
+        // 1. Correctly cropped, blurred, non-distorted album artwork background
+        ambientCover?.let { bitmap ->
+            Image(
+                bitmap = bitmap.asImageBitmap(),
+                contentDescription = null,
+                contentScale = ContentScale.Crop,
+                modifier = Modifier
+                    .fillMaxSize()
+                    .blur(60.dp, edgeTreatment = BlurredEdgeTreatment.Unbounded)
+            )
+        }
+
+        // 2. Dynamic glowing bubbles and heavy dark overlay
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .drawBehind {
+                    val width = size.width
+                    val height = size.height
+
+                    // Glowing dynamic dominant light bubble
+                    drawCircle(
+                        brush = Brush.radialGradient(
+                            colors = listOf(
+                                animatedDominant.copy(alpha = 0.35f),
+                                animatedDominant.copy(alpha = 0.12f),
+                                Color.Transparent
+                            ),
+                            center = Offset(width * 0.25f, height * 0.3f),
+                            radius = width * pulseScale1 * 2f
+                        )
+                    )
+
+                    // Glowing dynamic vibrant sibling light bubble
+                    drawCircle(
+                        brush = Brush.radialGradient(
+                            colors = listOf(
+                                animatedVibrant.copy(alpha = 0.38f),
+                                animatedVibrant.copy(alpha = 0.08f),
+                                Color.Transparent
+                            ),
+                            center = Offset(width * 0.8f, height * 0.75f),
+                            radius = width * pulseScale2 * 2.5f
+                        )
+                    )
+
+                    // Subtle center deep accent
+                    drawCircle(
+                        brush = Brush.radialGradient(
+                            colors = listOf(
+                                animatedDominant.copy(alpha = 0.18f),
+                                animatedVibrant.copy(alpha = 0.05f),
+                                Color.Transparent
+                            ),
+                            center = Offset(width * 0.5f, height * 0.5f),
+                            radius = width * 0.35f
+                        )
+                    )
+
+                    // Heavy dark overlay to ensure maximum contrast and clear readability
+                    drawRect(
+                        color = SpaceBlack.copy(alpha = 0.72f)
+                    )
+                }
+        )
+
         content()
     }
 }

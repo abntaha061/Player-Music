@@ -129,6 +129,5 @@ fun SearchScreen(viewModel: MusicPlayerViewModel) {
             }
         }
 
-        Spacer(modifier = Modifier.height(80.dp)) // Avoid Mini Player overlap
     }
 }

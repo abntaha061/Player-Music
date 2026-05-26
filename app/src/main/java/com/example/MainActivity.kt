@@ -40,6 +40,10 @@ import com.example.ui.screens.*
 import com.example.ui.theme.MyApplicationTheme
 import com.example.ui.theme.NeonAccent
 import com.example.ui.theme.TextMuted
+import androidx.compose.foundation.Image
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.draw.blur
+import androidx.compose.ui.draw.BlurredEdgeTreatment
 
 enum class NavPage {
     HOME, LIBRARY, SEARCH, SETTINGS
@@ -107,7 +111,7 @@ fun MainAppScaffold(musicViewModel: MusicPlayerViewModel = viewModel()) {
                             exit = slideOutVertically(targetOffsetY = { it }) + fadeOut(),
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(horizontal = 14.dp, vertical = 4.dp)
+                                .padding(start = 14.dp, end = 14.dp, top = 2.dp, bottom = 0.dp)
                         ) {
                             MiniAudioController(
                                 title = currentSong!!.title,
@@ -218,55 +222,60 @@ fun MainAppScaffold(musicViewModel: MusicPlayerViewModel = viewModel()) {
                 modifier = Modifier
                     .fillMaxSize()
                     .background(Color(0xFF040408)) // 100% Opaque Solid base to block home screen contents
-                    .drawBehind {
-                        val width = size.width
-                        val height = size.height
-
-                        // 1. Draw scaled-down album art stretched across the screen to function as a gorgeous native gaussian blur
-                        ambientCover?.let { bitmap ->
-                            try {
-                                drawImage(
-                                    image = bitmap.asImageBitmap(),
-                                    dstSize = IntSize(width.toInt(), height.toInt()),
-                                    alpha = 0.45f // Solid rich blend
-                                )
-                            } catch (e: Exception) {
-                                // fallback smoothly
-                            }
-                        }
-
-                        // 2. Glowing dynamic dominant light bubble
-                        drawCircle(
-                            brush = Brush.radialGradient(
-                                colors = listOf(
-                                    animatedDominant.copy(alpha = 0.35f),
-                                    animatedDominant.copy(alpha = 0.12f),
-                                    Color.Transparent
-                                ),
-                                center = Offset(width * 0.25f, height * 0.3f),
-                                radius = width * pulseScale1 * 2f
-                            )
-                        )
-
-                        // 3. Glowing dynamic vibrant sibling light bubble
-                        drawCircle(
-                            brush = Brush.radialGradient(
-                                colors = listOf(
-                                    animatedVibrant.copy(alpha = 0.38f),
-                                    animatedVibrant.copy(alpha = 0.08f),
-                                    Color.Transparent
-                                ),
-                                center = Offset(width * 0.8f, height * 0.75f),
-                                radius = width * pulseScale2 * 2.5f
-                            )
-                        )
-
-                        // 4. Heavy dark contrast overlay (65%) to ensure lyrics are 100% white-crisp and readable
-                        drawRect(
-                            color = Color(0xFF040408).copy(alpha = 0.65f)
-                        )
-                    }
             ) {
+                // 1. Center-cropped, heavy blurred background
+                ambientCover?.let { bitmap ->
+                    Image(
+                        bitmap = bitmap.asImageBitmap(),
+                        contentDescription = null,
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .blur(60.dp, edgeTreatment = BlurredEdgeTreatment.Unbounded)
+                    )
+                }
+
+                // 2. Underlay drawing bubbles and dark overlay
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .drawBehind {
+                            val width = size.width
+                            val height = size.height
+
+                            // Glowing dynamic dominant light bubble
+                            drawCircle(
+                                brush = Brush.radialGradient(
+                                    colors = listOf(
+                                        animatedDominant.copy(alpha = 0.35f),
+                                        animatedDominant.copy(alpha = 0.12f),
+                                        Color.Transparent
+                                    ),
+                                    center = Offset(width * 0.25f, height * 0.3f),
+                                    radius = width * pulseScale1 * 2f
+                                )
+                            )
+
+                            // Glowing dynamic vibrant sibling light bubble
+                            drawCircle(
+                                brush = Brush.radialGradient(
+                                    colors = listOf(
+                                        animatedVibrant.copy(alpha = 0.38f),
+                                        animatedVibrant.copy(alpha = 0.08f),
+                                        Color.Transparent
+                                    ),
+                                    center = Offset(width * 0.8f, height * 0.75f),
+                                    radius = width * pulseScale2 * 2.5f
+                                )
+                            )
+
+                            // Heavy dark contrast overlay (65%) to ensure lyrics are 100% white-crisp and readable
+                            drawRect(
+                                color = Color(0xFF040408).copy(alpha = 0.65f)
+                            )
+                        }
+                )
+
                 NowPlayingScreen(
                     viewModel = musicViewModel,
                     onCollapse = { isPlayerExpanded = false }
@@ -289,7 +298,7 @@ fun BottomGlassNavigationBar(
         modifier = Modifier
             .fillMaxWidth()
             .navigationBarsPadding() // Automatically offsets above device gesture handle / 3-button system bars
-            .padding(horizontal = 16.dp, vertical = 10.dp)
+            .padding(start = 16.dp, end = 16.dp, top = 0.dp, bottom = 10.dp)
             .height(56.dp)
             .glassmorphic(cornerRadius = 14.dp, alpha = 0.12f, borderColorAlpha = 0.22f),
         contentAlignment = Alignment.Center

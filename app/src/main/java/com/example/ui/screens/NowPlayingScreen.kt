@@ -352,8 +352,6 @@ fun SyncedLyricsScrollContainer(
 
     Box(
         modifier = modifier
-            .glassmorphic(cornerRadius = 16.dp, alpha = 0.05f)
-            .padding(12.dp)
     ) {
         if (parsedLyrics.isEmpty()) {
             Box(
