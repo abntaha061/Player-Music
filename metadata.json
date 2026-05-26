@@ -1,0 +1,6 @@
+{
+  "name": "Player Music",
+  "description": "An elegant, glassmorphic offline music player with state-of-the-art synced lyrics and checksum integrity validation.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
