@@ -201,17 +201,6 @@ fun LibrarySongRow(
                 )
             }
 
-            if (song.hasLyrics) {
-                Icon(
-                    imageVector = Icons.Filled.Mic,
-                    contentDescription = "Synced Lyrics Included",
-                    tint = NeonAccent,
-                    modifier = Modifier
-                        .size(16.dp)
-                        .padding(end = 4.dp)
-                )
-            }
-
             IconButton(onClick = onFavoriteToggle) {
                 Icon(
                     imageVector = if (song.isFavorite) Icons.Filled.Favorite else Icons.Filled.FavoriteBorder,
@@ -220,11 +209,11 @@ fun LibrarySongRow(
                 )
             }
 
-            IconButton(onClick = onInfoClick) {
+            IconButton(onClick = onPlay) {
                 Icon(
-                    imageVector = Icons.Filled.Security,
-                    contentDescription = "Integrity Hash Check",
-                    tint = NeonAccent.copy(alpha = 0.7f)
+                    imageVector = Icons.Filled.PlayArrow,
+                    contentDescription = "Play Song",
+                    tint = NeonAccent
                 )
             }
         }

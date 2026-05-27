@@ -122,7 +122,7 @@ fun SearchScreen(viewModel: MusicPlayerViewModel) {
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 items(filteredSongs) { song ->
-                    CompactSongRow(song = song) {
+                    CompactSongRow(song = song, showDetails = false) {
                         viewModel.playSong(song, filteredSongs)
                     }
                 }

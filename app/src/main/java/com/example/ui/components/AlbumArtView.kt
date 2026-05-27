@@ -37,7 +37,8 @@ fun AlbumArtView(
     artist: String,
     accentColor: Color,
     modifier: Modifier = Modifier,
-    isCircular: Boolean = false
+    isCircular: Boolean = false,
+    fallbackCharacter: String? = null
 ) {
     var bitmap by remember(filePath) { mutableStateOf<Bitmap?>(null) }
     var isLoaded by remember(filePath) { mutableStateOf(false) }
@@ -71,40 +72,55 @@ fun AlbumArtView(
             )
         } else {
             // Glassmorphic / procedural gorgeous fallback placeholder
+            val backgroundBrush = if (fallbackCharacter != null) {
+                Brush.linearGradient(
+                    colors = listOf(accentColor, accentColor.copy(alpha = 0.4f))
+                )
+            } else {
+                Brush.linearGradient(
+                    colors = listOf(
+                        Color.White.copy(alpha = 0.10f),
+                        Color.White.copy(alpha = 0.02f)
+                    )
+                )
+            }
+
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .background(
-                        Brush.linearGradient(
-                            colors = listOf(
-                                Color.White.copy(alpha = 0.10f),
-                                Color.White.copy(alpha = 0.02f)
-                            )
-                        )
-                    ),
+                    .background(backgroundBrush),
                 contentAlignment = Alignment.Center
             ) {
-                Column(
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.Center
-                ) {
-                    Icon(
-                        imageVector = Icons.Filled.MusicNote,
-                        contentDescription = "No Artwork",
-                        tint = accentColor.copy(alpha = 0.65f),
-                        modifier = Modifier.size(
-                            if (isCircular) 32.dp else 24.dp
-                        )
+                if (fallbackCharacter != null) {
+                    Text(
+                        text = fallbackCharacter,
+                        color = Color.White,
+                        fontSize = if (isCircular) 28.sp else 22.sp,
+                        fontWeight = FontWeight.Bold
                     )
-                    
-                    if (!isCircular) {
-                        Spacer(modifier = Modifier.height(2.dp))
-                        Text(
-                            text = if (title.isNotEmpty()) title.take(1).uppercase() else "M",
-                            color = Color.White.copy(alpha = 0.35f),
-                            fontSize = 11.sp,
-                            fontWeight = FontWeight.Bold
+                } else {
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.MusicNote,
+                            contentDescription = "No Artwork",
+                            tint = accentColor.copy(alpha = 0.65f),
+                            modifier = Modifier.size(
+                                if (isCircular) 32.dp else 24.dp
+                            )
                         )
+                        
+                        if (!isCircular) {
+                            Spacer(modifier = Modifier.height(2.dp))
+                            Text(
+                                text = if (title.isNotEmpty()) title.take(1).uppercase() else "M",
+                                color = Color.White.copy(alpha = 0.35f),
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
                     }
                 }
             }

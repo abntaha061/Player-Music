@@ -172,6 +172,8 @@ fun HomeScreen(
             horizontalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             items(artistsToDisplay) { artist ->
+                val firstSong = allSongs.firstOrNull { it.artist.equals(artist.name, ignoreCase = true) }
+
                 Column(
                     modifier = Modifier
                         .width(100.dp)
@@ -179,24 +181,36 @@ fun HomeScreen(
                         .testTag("artist_item_${artist.name.hashCode()}"),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    // Circle background with initial character
-                    Box(
-                        modifier = Modifier
-                            .size(80.dp)
-                            .clip(CircleShape)
-                            .background(
-                                Brush.linearGradient(
-                                    colors = listOf(artist.color, artist.color.copy(alpha = 0.4f))
-                                )
-                            ),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(
-                            text = artist.name.take(1),
-                            color = Color.White,
-                            fontSize = 32.sp,
-                            fontWeight = FontWeight.Bold
+                    if (firstSong != null) {
+                        AlbumArtView(
+                            filePath = firstSong.filePath,
+                            title = firstSong.title,
+                            artist = firstSong.artist,
+                            accentColor = artist.color,
+                            modifier = Modifier.size(80.dp),
+                            isCircular = true,
+                            fallbackCharacter = artist.name.take(1)
                         )
+                    } else {
+                        // Circle background with initial character
+                        Box(
+                            modifier = Modifier
+                                .size(80.dp)
+                                .clip(CircleShape)
+                                .background(
+                                    Brush.linearGradient(
+                                        colors = listOf(artist.color, artist.color.copy(alpha = 0.4f))
+                                    )
+                                ),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = artist.name.take(1),
+                                color = Color.White,
+                                fontSize = 32.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
                     }
 
                     Spacer(modifier = Modifier.height(8.dp))
@@ -417,25 +431,18 @@ fun AlbumArtVerticalItem(
             .clickable(onClick = onClick)
             .testTag("album_card_${song.title.hashCode()}")
     ) {
-        // Pseudo Album Cover with Glass Gradient looks majestic!
         Box(
             modifier = Modifier
                 .size(130.dp)
-                .clip(RoundedCornerShape(16.dp))
-                .background(
-                    Brush.radialGradient(
-                        colors = listOf(itemThemeColor.copy(alpha = 0.6f), Color.Transparent),
-                        radius = 280f
-                    )
-                )
-                .glassmorphic(cornerRadius = 16.dp, alpha = 0.15f),
+                .clip(RoundedCornerShape(16.dp)),
             contentAlignment = Alignment.Center
         ) {
-            Icon(
-                imageVector = Icons.Filled.MusicNote,
-                contentDescription = null,
-                tint = itemThemeColor,
-                modifier = Modifier.size(54.dp)
+            AlbumArtView(
+                filePath = song.filePath,
+                title = song.title,
+                artist = song.artist,
+                accentColor = itemThemeColor,
+                modifier = Modifier.fillMaxSize()
             )
 
             // Dynamic lyric badge
@@ -477,6 +484,7 @@ fun AlbumArtVerticalItem(
 fun CompactSongRow(
     song: SongEntity,
     modifier: Modifier = Modifier,
+    showDetails: Boolean = true,
     onClick: () -> Unit
 ) {
     Box(
@@ -517,21 +525,23 @@ fun CompactSongRow(
                 )
             }
 
-            if (song.hasLyrics) {
-                Icon(
-                    imageVector = Icons.Filled.TextFormat,
-                    contentDescription = "Lyrics available",
-                    tint = NeonAccent.copy(alpha = 0.8f),
-                    modifier = Modifier.size(16.dp)
-                )
-                Spacer(modifier = Modifier.width(8.dp))
-            }
+            if (showDetails) {
+                if (song.hasLyrics) {
+                    Icon(
+                        imageVector = Icons.Filled.TextFormat,
+                        contentDescription = "Lyrics available",
+                        tint = NeonAccent.copy(alpha = 0.8f),
+                        modifier = Modifier.size(16.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                }
 
-            Text(
-                text = "${song.fileSize / 1024 / 1024}MB",
-                color = TextMuted,
-                fontSize = 11.sp
-            )
+                Text(
+                    text = "${song.fileSize / 1024 / 1024}MB",
+                    color = TextMuted,
+                    fontSize = 11.sp
+                )
+            }
         }
     }
 }
