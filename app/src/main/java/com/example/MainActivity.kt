@@ -215,38 +215,36 @@ class MainActivity : ComponentActivity() {
                                         }
 
                                         // B. Artists For You
-                                        Column {
-                                            Text(
-                                                text = "فنانين من أجلك / Artists For You",
-                                                fontSize = 12.sp,
-                                                fontWeight = FontWeight.Bold,
-                                                color = TextGrey,
-                                                letterSpacing = 1.sp,
-                                                modifier = Modifier.padding(bottom = 10.dp)
-                                            )
-                                            LazyRow(
-                                                horizontalArrangement = Arrangement.spacedBy(16.dp)
-                                            ) {
-                                                item {
-                                                    ArtistItem(
-                                                        letter = "أ",
-                                                        name = "ألوان النور",
-                                                        gradient = Brush.linearGradient(listOf(Color(0xFF00ADB5), Color(0xFFBD83FF)))
-                                                    )
-                                                }
-                                                item {
-                                                    ArtistItem(
-                                                        letter = "ل",
-                                                        name = "لحن الهدوء الممزوج",
-                                                        gradient = Brush.linearGradient(listOf(Color(0xFFBD83FF), Color(0xFFFF5252)))
-                                                    )
-                                                }
-                                                item {
-                                                    ArtistItem(
-                                                        letter = "ن",
-                                                        name = "نبضات الكوكب",
-                                                        gradient = Brush.linearGradient(listOf(Color(0xFFFF5252), Color(0xFFFFB300)))
-                                                    )
+                                        val uniqueArtists = remember(songs) {
+                                            songs.map { it.artist }
+                                                .distinct()
+                                                .filter { it.isNotBlank() && it != "Unknown Artist" && it != "الفنان غير معروف" }
+                                        }
+
+                                        if (uniqueArtists.isNotEmpty()) {
+                                            Column {
+                                                Text(
+                                                    text = "فناني جهازك / Local Artists",
+                                                    fontSize = 12.sp,
+                                                    fontWeight = FontWeight.Bold,
+                                                    color = TextGrey,
+                                                    letterSpacing = 1.sp,
+                                                    modifier = Modifier.padding(bottom = 10.dp)
+                                                )
+                                                LazyRow(
+                                                    horizontalArrangement = Arrangement.spacedBy(16.dp)
+                                                ) {
+                                                    items(uniqueArtists) { artist ->
+                                                        val letter = if (artist.isNotEmpty()) artist.take(1).uppercase() else "A"
+                                                        val colors = com.example.util.LocalMusicScanner.getColorsForText(artist)
+                                                        val count = songs.count { it.artist == artist }
+                                                        ArtistItem(
+                                                            letter = letter,
+                                                            name = artist,
+                                                            gradient = Brush.linearGradient(listOf(colors.first, colors.second)),
+                                                            tracksCount = count
+                                                        )
+                                                    }
                                                 }
                                             }
                                         }
@@ -291,7 +289,7 @@ class MainActivity : ComponentActivity() {
                                                             colors = ButtonDefaults.buttonColors(containerColor = trackVibrantColor),
                                                             shape = RoundedCornerShape(12.dp)
                                                         ) {
-                                                            Text("توليد ملفات وبطاقات تجريبية", color = Color.White)
+                                                            Text("تحديث واستيراد ملفات الهاتف / Scroll & Scan", color = Color.White)
                                                         }
                                                     }
                                                 }
@@ -346,7 +344,7 @@ class MainActivity : ComponentActivity() {
                                                 )
                                                 Spacer(modifier = Modifier.height(8.dp))
                                                 Text(
-                                                    text = "تأكد من وجود ملفات موسيقى بمجلد /Music/ بالنظام، أو اضغط على الزر بالأسفل لتوليد أغاني تجريبية متكاملة.",
+                                                    text = "تأكد من وجود ملفات موسيقى (.mp3) في مجلد الموسيقى (Music) بالهاتف، واضغط على زر التحديث بالأسفل لمسح الذاكرة وتنشيط المكتبة.",
                                                     fontSize = 13.sp,
                                                     color = TextGrey,
                                                     textAlign = TextAlign.Center
@@ -357,7 +355,7 @@ class MainActivity : ComponentActivity() {
                                                     colors = ButtonDefaults.buttonColors(containerColor = trackVibrantColor),
                                                     shape = RoundedCornerShape(12.dp)
                                                 ) {
-                                                    Text("توليد ملفات وبطاقات تجريبية", color = Color.White)
+                                                    Text("تحديث واستيراد ملفات الهاتف / Scroll & Scan", color = Color.White)
                                                 }
                                             }
                                         } else {
@@ -996,6 +994,7 @@ fun ArtistItem(
     letter: String,
     name: String,
     gradient: Brush,
+    tracksCount: Int,
     modifier: Modifier = Modifier
 ) {
     Column(
@@ -1026,8 +1025,9 @@ fun ArtistItem(
             maxLines = 1,
             overflow = TextOverflow.Ellipsis
         )
+        val trackText = if (tracksCount == 1) "مسار واحد" else "$tracksCount مسار"
         Text(
-            text = "1 مسار • 0 تشغيل",
+            text = "$trackText • 0 تشغيل",
             fontSize = 10.sp,
             color = TextGrey,
             textAlign = TextAlign.Center
