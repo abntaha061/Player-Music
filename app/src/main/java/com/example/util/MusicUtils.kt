@@ -42,17 +42,7 @@ data class Song(
                 emptyList()
             }
         }
-        
-        // Fallback procedural lyrics if no LRC file exists
-        return listOf(
-            LyricLine(0L, "• Real-time Playback of Local MP3 •"),
-            LyricLine(2000L, "Title: $title"),
-            LyricLine(5000L, "Artist: $artist"),
-            LyricLine(8000L, "Album: $album"),
-            LyricLine(11000L, "File: ${File(dataPath).name}"),
-            LyricLine(14000L, "Enjoying local high-fidelity audio..."),
-            LyricLine(20000L, "• End of Metadata Summary •")
-        )
+        return emptyList()
     }
 }
 
@@ -93,192 +83,17 @@ object LrcParser {
 
 object LocalMusicScanner {
 
-    // Direct directories to write and scan fallback sample files safely
-    fun getSampleMusicDir(context: Context): File {
-        return context.getExternalFilesDir(Environment.DIRECTORY_MUSIC) ?: context.filesDir
-    }
-
-    // Creates beautiful 30-second simulated local audio tracks if the storage is completely empty
+    // No-op method to ensure reference safety – we stop writing synthetic/mock tracks completely.
     fun deploySampleLocalTracks(context: Context) {
-        val musicDir = getSampleMusicDir(context)
-        if (!musicDir.exists()) {
-            musicDir.mkdirs()
-        }
-
-        // Clean up old sample files
-        File(musicDir, "Midnight_Coffee.mp3").delete()
-        File(musicDir, "Midnight_Coffee.lrc").delete()
-        File(musicDir, "Neon_Horizon.mp3").delete()
-        File(musicDir, "Neon_Horizon.lrc").delete()
-
-        val track1Sound = File(musicDir, "Aml_Bokra.mp3")
-        val track1Lrc = File(musicDir, "Aml_Bokra.lrc")
-        val track2Sound = File(musicDir, "3atma.mp3")
-        val track2Lrc = File(musicDir, "3atma.lrc")
-        val track3Sound = File(musicDir, "3ein_Se7reya.mp3")
-        val track3Lrc = File(musicDir, "3ein_Se7reya.lrc")
-
-        if (!track1Sound.exists()) {
-            writeProceduralWavFile(track1Sound, 261.63f) // Middle C4 wave for Aml Bokra
-            track1Lrc.writeText(
-                """
-                [00:00.00]أمل بكرة - نبضات الكوكب (Aml Bokra)
-                [00:03.00]في نبض الكوكب نجد الأمل والضمير المشرق
-                [00:07.50]نهر ينادينا لنرسم حلم بكرة بألوان الفجر
-                [00:12.00]كل نبضة تعيد الحياة وتنسج عهد اللقاء
-                [00:16.50]طريقنا طويل ولكن سنمضى معاً يداً بيد
-                [00:21.00]فوق السحاب سنحلق كأسراب طيور السلام
-                [00:25.00]غداً يوم جديد وسنصنع فيه فجراً بهياً
-                """.trimIndent()
-            )
-        }
-
-        if (!track2Sound.exists()) {
-            writeProceduralWavFile(track2Sound, 220f) // A3 baseline wave for 3atma
-            track2Lrc.writeText(
-                """
-                [00:00.00]عتمة - لحن الهدوء الممزوج (3atma)
-                [00:03.00]في هدأة الليل نبحر بلا منبر وبلا شراع يحمينا
-                [00:07.50]نسامر العتمة الدامسة ونمحو مر الفراق والضياع الحزين
-                [00:12.00]ونوقد شمعة في الزوايا الدافئة لننهي فصول الوداع مريرة
-                [00:16.50]حلم تلو حلم يتسع كحلقات كون وساع يتجاوز الخيال
-                [00:21.00]عتمة الليل تتجلى تماماً حين تشرق شمس القاع وتشرق القلوب
-                [00:25.00]نبحث عن السلام في عتمة الليل السرية المريحة
-                [00:29.00]نغمات دافئة تتسلل كأشعة النور الذهبية
-                """.trimIndent()
-            )
-        }
-
-        if (!track3Sound.exists()) {
-            writeProceduralWavFile(track3Sound, 329.63f) // E4 wave for 3ein Se7reya
-            track3Lrc.writeText(
-                """
-                [00:00.00]عين سحرية - ألوان النور (3in Se7reya)
-                [00:03.00]من عين سحرية نرى العجائب والجمال الكوني
-                [00:07.50]ألوان النور تنبثق في الصمت تضيء دروبنا
-                [00:12.00]سحر ينهمر كشلال متلألئ من نجوم السماء
-                [00:16.50]كل نظرة تكشف أسرار الحياة المخبوءة بين السطور
-                [00:21.00]سنرقص مع الضوء في لوحة فنية ساحرة
-                [00:25.00]فن دائم وجمال يتجدد مع صباح كل يوم
-                """.trimIndent()
-            )
-        }
+        // No-op: Completely stopped generating fake tracks to honor user intention
     }
 
-    // Writes a valid, lightweight WAVE container containing synthetic audio
-    private fun writeProceduralWavFile(file: File, frequency: Float) {
-        val sampleRate = 11025
-        val durationSeconds = 30
-        val numSamples = sampleRate * durationSeconds
-        val subChunk2Size = numSamples * 2 // 16-bit mono
-        val chunkSize = 36 + subChunk2Size
-
-        FileOutputStream(file).use { fos ->
-            // RIFF Header
-            fos.write("RIFF".toByteArray())
-            fos.write(intToByteArray(chunkSize))
-            fos.write("WAVE".toByteArray())
-
-            // Format Chunk
-            fos.write("fmt ".toByteArray())
-            fos.write(intToByteArray(16)) // subchunk1Size
-            fos.write(shortToByteArray(1)) // audioFormat: 1 = PCM
-            fos.write(shortToByteArray(1)) // numChannels: 1 = Mono
-            fos.write(intToByteArray(sampleRate))
-            fos.write(intToByteArray(sampleRate * 2)) // byteRate
-            fos.write(shortToByteArray(2)) // blockAlign
-            fos.write(shortToByteArray(16)) // bitsPerSample
-
-            // Data Chunk
-            fos.write("data".toByteArray())
-            fos.write(intToByteArray(subChunk2Size))
-
-            // Procedural Sine Audio Generation
-            val buffer = ByteBuffer.allocate(2048)
-            buffer.order(ByteOrder.LITTLE_ENDIAN)
-
-            for (i in 0 until numSamples) {
-                val t = i.toDouble() / sampleRate
-                val angle = 2.0 * Math.PI * frequency * t
-                val sample = (Math.sin(angle) * 32767.0 * 0.4).toInt().toShort()
-                
-                if (!buffer.hasRemaining()) {
-                    fos.write(buffer.array())
-                    buffer.clear()
-                }
-                buffer.putShort(sample)
-            }
-            if (buffer.position() > 0) {
-                fos.write(buffer.array(), 0, buffer.position())
-            }
-        }
-    }
-
-    private fun intToByteArray(value: Int): ByteArray {
-        return ByteBuffer.allocate(4).order(ByteOrder.LITTLE_ENDIAN).putInt(value).array()
-    }
-
-    private fun shortToByteArray(value: Short): ByteArray {
-        return ByteBuffer.allocate(2).order(ByteOrder.LITTLE_ENDIAN).putShort(value).array()
-    }
-
-    // Scans direct files as well as querying MediaStore for exhaustive results
+    // Scans direct public music files as well as querying MediaStore for exhaustive results
     fun scanDeviceMusic(context: Context): List<Song> {
         val songsList = mutableListOf<Song>()
-        
-        // 1. Direct local files scan (reliable, bypasses media index delays on emulators)
-        val sampleDir = getSampleMusicDir(context)
-        if (sampleDir.exists()) {
-            val audioFiles = sampleDir.listFiles { file ->
-                val ext = file.extension.lowercase()
-                ext == "mp3" || ext == "wav" || ext == "m4a" || ext == "ogg"
-            }
-            audioFiles?.forEach { file ->
-                var title = file.nameWithoutExtension.replace('_', ' ')
-                var artist = "Unknown Artist"
-                var album = "Aurora Local"
-                
-                when (file.name) {
-                    "Aml_Bokra.mp3" -> {
-                        title = "أمل بكرة / Aml Bokra"
-                        artist = "نبضات الكوكب / Planet Heartbeats"
-                        album = "Planet Heartbeats"
-                    }
-                    "3atma.mp3" -> {
-                        title = "عتمة / 3atma"
-                        artist = "لحن الهدوء الممزوج / Soft Symphony"
-                        album = "Soft Symphony"
-                    }
-                    "3ein_Se7reya.mp3" -> {
-                        title = "عين سحرية / 3ein Se7reya"
-                        artist = "ألوان النور / Colors of Light"
-                        album = "Colors of Light"
-                    }
-                }
-                
-                val duration = 30 // Sample tracks are 30s
-                
-                // Color mapping: generate custom pleasant palettes for local tracks
-                val colors = getColorsForText(title)
-
-                songsList.add(
-                    Song(
-                        id = "local_file_${file.name.hashCode()}",
-                        title = title,
-                        artist = artist,
-                        album = album,
-                        durationSeconds = duration,
-                        dataPath = file.absolutePath,
-                        isSample = true,
-                        dominantColor = colors.first,
-                        vibrantColor = colors.second
-                    )
-                )
-            }
-        }
-
-        // 2. MediaStore query (fetches user's actual local storage MP3 files)
         val resolver: ContentResolver = context.contentResolver
+        
+        // 1. MediaStore query (fetches user's actual local storage MP3 / audio files)
         val uri = MediaStore.Audio.Media.EXTERNAL_CONTENT_URI
         val projection = arrayOf(
             MediaStore.Audio.Media._ID,
@@ -312,7 +127,6 @@ object LocalMusicScanner {
                         val durationSec = (durationMs / 1000).toInt().coerceAtLeast(1)
                         val colors = getColorsForText(title)
 
-                        // Avoid adding duplicates that direct folder already scanned
                         if (songsList.none { it.dataPath == dataPath }) {
                             songsList.add(
                                 Song(
@@ -332,10 +146,98 @@ object LocalMusicScanner {
                 }
             }
         } catch (e: Exception) {
-            // MediaStore query failed, fall back safely
+            // MediaStore query failed
+        }
+
+        // 2. Direct scan of standard public Music directory as fallback/complementation
+        // to discover real files immediately even if MediaStore hasn't indexed them yet.
+        val publicMusicDirs = listOf(
+            Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_MUSIC),
+            File("/sdcard/Music"),
+            File("/storage/emulated/0/Music")
+        )
+
+        for (dir in publicMusicDirs) {
+            if (dir.exists() && dir.isDirectory) {
+                scanDirRecursive(dir, songsList)
+            }
         }
 
         return songsList
+    }
+
+    private fun scanDirRecursive(dir: File, songsList: MutableList<Song>) {
+        val files = dir.listFiles() ?: return
+        for (file in files) {
+            if (file.isDirectory) {
+                scanDirRecursive(file, songsList)
+            } else if (file.isFile) {
+                val ext = file.extension.lowercase()
+                if (ext == "mp3" || ext == "wav" || ext == "m4a" || ext == "ogg" || ext == "flac") {
+                    val dataPath = file.absolutePath
+                    if (songsList.none { it.dataPath == dataPath }) {
+                        val duration = getDurationUsingRetriever(dataPath)
+                        val title = file.nameWithoutExtension.replace('_', ' ')
+                        val artist = getArtistUsingRetriever(dataPath) ?: "Unknown Artist"
+                        val album = getAlbumUsingRetriever(dataPath) ?: "Local Album"
+                        val colors = getColorsForText(title)
+                        
+                        songsList.add(
+                            Song(
+                                id = "file_${file.name.hashCode()}",
+                                title = title,
+                                artist = artist,
+                                album = album,
+                                durationSeconds = duration,
+                                dataPath = dataPath,
+                                isSample = false,
+                                dominantColor = colors.first,
+                                vibrantColor = colors.second
+                            )
+                        )
+                    }
+                }
+            }
+        }
+    }
+
+    private fun getDurationUsingRetriever(dataPath: String): Int {
+        val retriever = MediaMetadataRetriever()
+        return try {
+            retriever.setDataSource(dataPath)
+            val durStr = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION)
+            val durationMs = durStr?.toLongOrNull() ?: 0L
+            (durationMs / 1000).toInt().coerceAtLeast(1)
+        } catch (e: Exception) {
+            30
+        } finally {
+            try { retriever.release() } catch (e: Exception) {}
+        }
+    }
+
+    private fun getArtistUsingRetriever(dataPath: String): String? {
+        val retriever = MediaMetadataRetriever()
+        return try {
+            retriever.setDataSource(dataPath)
+            retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_ARTIST)
+                ?: retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_ALBUMARTIST)
+        } catch (e: Exception) {
+            null
+        } finally {
+            try { retriever.release() } catch (e: Exception) {}
+        }
+    }
+
+    private fun getAlbumUsingRetriever(dataPath: String): String? {
+        val retriever = MediaMetadataRetriever()
+        return try {
+            retriever.setDataSource(dataPath)
+            retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_ALBUM)
+        } catch (e: Exception) {
+            null
+        } finally {
+            try { retriever.release() } catch (e: Exception) {}
+        }
     }
 
     // Dynamic, aesthetic color generation from title text to make sure every file looks fantastic
@@ -343,35 +245,65 @@ object LocalMusicScanner {
         val h = text.hashCode().coerceAtLeast(0)
         val hue1 = (h % 360).toFloat()
         val hue2 = ((h + 120) % 360).toFloat()
-        
-        // Return pleasant high-contrast colors
         return Pair(
             Color.hsl(hue1, 0.65f, 0.45f),
             Color.hsl(hue2, 0.85f, 0.55f)
         )
     }
 
-    // Embedded Album Art extractor
-    fun extractEmbeddedAlbumArt(dataPath: String): Bitmap? {
+    // Dual-Source Album Art Extractor (uses both MetadataRetriever and Uri withAppendedId loaders)
+    fun extractEmbeddedAlbumArt(context: Context, dataPath: String, songId: String?): Bitmap? {
         val file = File(dataPath)
-        if (!file.exists()) return null
-        val retriever = MediaMetadataRetriever()
-        return try {
-            retriever.setDataSource(dataPath)
-            val artBytes = retriever.embeddedPicture
-            if (artBytes != null) {
-                BitmapFactory.decodeByteArray(artBytes, 0, artBytes.size)
-            } else {
-                null
-            }
-        } catch (e: Exception) {
-            null
-        } finally {
+        var bitmap: Bitmap? = null
+
+        // 1. MediaMetadataRetriever Extraction
+        if (file.exists() && file.isFile) {
+            val retriever = MediaMetadataRetriever()
             try {
-                retriever.release()
+                retriever.setDataSource(dataPath)
+                val artBytes = retriever.embeddedPicture
+                if (artBytes != null) {
+                    bitmap = BitmapFactory.decodeByteArray(artBytes, 0, artBytes.size)
+                }
             } catch (e: Exception) {
-                // Ignore
+                // Fallback
+            } finally {
+                try { retriever.release() } catch (e: Exception) {}
             }
         }
+
+        if (bitmap != null) return bitmap
+
+        // 2. MediaStore AlbumArt ContentUris Extraction
+        if (songId != null) {
+            try {
+                val mediaId = songId.toLongOrNull()
+                if (mediaId != null) {
+                    val uri = Uri.parse("content://media/external/audio/media/$mediaId/albumart")
+                    context.contentResolver.openInputStream(uri).use { stream ->
+                        bitmap = BitmapFactory.decodeStream(stream)
+                    }
+                }
+            } catch (e: Exception) {
+                // Fallback
+            }
+
+            if (bitmap != null) return bitmap
+
+            // Android Q loader fallback
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                try {
+                    val mediaId = songId.toLongOrNull()
+                    if (mediaId != null) {
+                        val trackUri = Uri.withAppendedPath(MediaStore.Audio.Media.EXTERNAL_CONTENT_URI, songId)
+                        bitmap = context.contentResolver.loadThumbnail(trackUri, android.util.Size(600, 600), null)
+                    }
+                } catch (e: Exception) {
+                    // Ignore
+                }
+            }
+        }
+
+        return bitmap
     }
 }

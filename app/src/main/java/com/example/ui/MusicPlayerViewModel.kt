@@ -50,9 +50,6 @@ class MusicPlayerViewModel(application: Application) : AndroidViewModel(applicat
     fun deployAndScan() {
         viewModelScope.launch {
             val context = getApplication<Application>()
-            // Deploy clean high-contrast sample local tracks and .lrc matched files
-            LocalMusicScanner.deploySampleLocalTracks(context)
-            
             // Scan directories and media store
             val scannedSongs = LocalMusicScanner.scanDeviceMusic(context)
             _songs.value = scannedSongs

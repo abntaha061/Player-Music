@@ -461,9 +461,10 @@ fun SongArtworkIndicator(
     isPlaying: Boolean,
     modifier: Modifier = Modifier
 ) {
+    val context = androidx.compose.ui.platform.LocalContext.current
     var bitmap by remember(song.dataPath) { mutableStateOf<android.graphics.Bitmap?>(null) }
     LaunchedEffect(song.dataPath) {
-        bitmap = LocalMusicScanner.extractEmbeddedAlbumArt(song.dataPath)
+        bitmap = LocalMusicScanner.extractEmbeddedAlbumArt(context, song.dataPath, song.id)
     }
 
     Box(
@@ -1097,13 +1098,19 @@ fun DiscoverLocalItem(
                     .background(GlassWhite)
                     .padding(horizontal = 8.dp, vertical = 4.dp)
             ) {
-                val size = when(song.title) {
-                    "أمل بكرة / Aml Bokra" -> "10MB"
-                    "عتمة / 3atma" -> "6MB"
-                    else -> "8MB"
+                val file = java.io.File(song.dataPath)
+                val size = if (file.exists() && file.isFile) {
+                    val bytes = file.length()
+                    if (bytes > 0) {
+                        String.format(java.util.Locale.US, "%.1f MB", bytes.toDouble() / (1024 * 1024))
+                    } else {
+                        "8.0 MB"
+                    }
+                } else {
+                    "8.0 MB"
                 }
                 Text(
-                    text = "$size",
+                    text = size,
                     fontSize = 10.sp,
                     fontWeight = FontWeight.Bold,
                     color = TextGrey
@@ -1223,14 +1230,15 @@ fun SongArtworkCircleIndicator(
     isPlaying: Boolean,
     modifier: Modifier = Modifier
 ) {
+    val context = androidx.compose.ui.platform.LocalContext.current
     var bitmap by remember(song.dataPath) { mutableStateOf<android.graphics.Bitmap?>(null) }
     LaunchedEffect(song.dataPath) {
-        bitmap = LocalMusicScanner.extractEmbeddedAlbumArt(song.dataPath)
+        bitmap = LocalMusicScanner.extractEmbeddedAlbumArt(context, song.dataPath, song.id)
     }
 
     Box(
         modifier = modifier
-            .clip(CircleShape)
+            .clip(RoundedCornerShape(8.dp))
             .background(
                 Brush.linearGradient(listOf(song.dominantColor, song.vibrantColor))
             ),

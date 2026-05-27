@@ -84,22 +84,12 @@ fun CrispAlbumArt(
     isPlaying: Boolean,
     modifier: Modifier = Modifier
 ) {
+    val context = LocalContext.current
     var albumArtBitmap by remember(song.dataPath) { mutableStateOf<Bitmap?>(null) }
     
     LaunchedEffect(song.dataPath) {
-        albumArtBitmap = LocalMusicScanner.extractEmbeddedAlbumArt(song.dataPath)
+        albumArtBitmap = LocalMusicScanner.extractEmbeddedAlbumArt(context, song.dataPath, song.id)
     }
-
-    val infiniteTransition = rememberInfiniteTransition(label = "DiskRotate")
-    val rotationAngle by infiniteTransition.animateFloat(
-        initialValue = 0f,
-        targetValue = 360f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(22000, easing = LinearEasing),
-            repeatMode = RepeatMode.Restart
-        ),
-        label = "DiskAngle"
-    )
 
     val scale by animateFloatAsState(
         targetValue = if (isPlaying) 1.0f else 0.92f,
@@ -110,27 +100,25 @@ fun CrispAlbumArt(
     Box(
         modifier = modifier
             .aspectRatio(1f)
-            .padding(12.dp)
-            .rotate(if (isPlaying) rotationAngle else 0f)
-            .clip(CircleShape)
+            .graphicsLayer {
+                scaleX = scale
+                scaleY = scale
+            }
+            .clip(RoundedCornerShape(24.dp))
             .background(
                 Brush.radialGradient(
                     colors = listOf(
-                        song.dominantColor.copy(alpha = 0.9f),
-                        song.vibrantColor.copy(alpha = 0.6f),
+                        song.dominantColor.copy(alpha = 0.5f),
+                        song.vibrantColor.copy(alpha = 0.2f),
                         Color(0xFF0F0F1A)
                     )
                 )
             )
             .border(
-                6.dp,
-                Brush.linearGradient(
-                    listOf(Color.White.copy(alpha = 0.12f), Color.Black.copy(alpha = 0.8f))
-                ),
-                CircleShape
-            )
-            .padding(16.dp)
-            .border(2.dp, Color.White.copy(alpha = 0.08f), CircleShape),
+                1.dp,
+                Color.White.copy(alpha = 0.15f),
+                RoundedCornerShape(24.dp)
+            ),
         contentAlignment = Alignment.Center
     ) {
         if (albumArtBitmap != null) {
@@ -138,49 +126,37 @@ fun CrispAlbumArt(
                 bitmap = albumArtBitmap!!.asImageBitmap(),
                 contentDescription = "Album Art",
                 contentScale = ContentScale.Crop,
-                modifier = Modifier
-                    .fillMaxSize()
-                    .clip(CircleShape)
+                modifier = Modifier.fillMaxSize()
             )
-            // Grooves on top
-            Canvas(modifier = Modifier.fillMaxSize()) {
-                val r = size.minDimension / 2f
-                for (i in 2..8) {
-                    drawCircle(
-                        color = Color.White.copy(alpha = 0.008f * i),
-                        radius = r * (i / 10f),
-                        style = Stroke(width = 1.dp.toPx())
-                    )
-                }
-            }
         } else {
-            // Disk grooves
-            Canvas(modifier = Modifier.fillMaxSize()) {
-                val r = size.minDimension / 2f
-                for (i in 1..8) {
-                    drawCircle(
-                        color = Color.White.copy(alpha = 0.015f * i),
-                        radius = r * (i / 10f),
-                        style = Stroke(width = 1.dp.toPx())
-                    )
-                }
-            }
-
-            // Center visual core
+            // Elegant fallback
             Box(
                 modifier = Modifier
-                    .fillMaxSize(0.38f)
-                    .clip(CircleShape)
-                    .background(Color(0xFF04040A))
-                    .border(3.dp, Color.White.copy(alpha = 0.15f), CircleShape),
+                    .fillMaxSize()
+                    .background(
+                        Brush.linearGradient(
+                            colors = listOf(
+                                song.dominantColor.copy(alpha = 0.3f),
+                                song.vibrantColor.copy(alpha = 0.3f)
+                            )
+                        )
+                    ),
                 contentAlignment = Alignment.Center
             ) {
-                Icon(
-                    imageVector = Icons.Filled.MusicNote,
-                    contentDescription = null,
-                    tint = song.vibrantColor,
-                    modifier = Modifier.fillMaxSize(0.5f)
-                )
+                Box(
+                    modifier = Modifier
+                        .size(72.dp)
+                        .clip(CircleShape)
+                        .background(Color.White.copy(alpha = 0.08f)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Rounded.MusicNote,
+                        contentDescription = null,
+                        tint = Color.White,
+                        modifier = Modifier.size(36.dp)
+                    )
+                }
             }
         }
     }
