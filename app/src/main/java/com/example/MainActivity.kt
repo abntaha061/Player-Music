@@ -1,12 +1,16 @@
 package com.example
 
+import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
 import androidx.compose.animation.*
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -24,6 +28,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -31,10 +38,11 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.ui.MusicPlayerViewModel
-import com.example.ui.Song
-import com.example.ui.LyricLine
 import com.example.ui.components.*
 import com.example.ui.theme.*
+import com.example.util.LocalMusicScanner
+import com.example.util.LyricLine
+import com.example.util.Song
 
 class MainActivity : ComponentActivity() {
 
@@ -45,6 +53,7 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         setContent {
             PlayerMusicTheme {
+                val songs by musicViewModel.songs.collectAsState()
                 val currentSong by musicViewModel.currentSong.collectAsState()
                 val isPlaying by musicViewModel.isPlaying.collectAsState()
                 val currentTimeSec by musicViewModel.currentTimeSec.collectAsState()
@@ -53,6 +62,24 @@ class MainActivity : ComponentActivity() {
                 val trackVibrantColor by musicViewModel.trackVibrantColor.collectAsState()
 
                 var isPlayerExpanded by remember { mutableStateOf(false) }
+
+                val context = LocalContext.current
+                var hasSelectPermission by remember {
+                    mutableStateOf(
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                            context.checkSelfPermission(android.Manifest.permission.READ_MEDIA_AUDIO) == android.content.pm.PackageManager.PERMISSION_GRANTED
+                        } else {
+                            context.checkSelfPermission(android.Manifest.permission.READ_EXTERNAL_STORAGE) == android.content.pm.PackageManager.PERMISSION_GRANTED
+                        }
+                    )
+                }
+
+                val permissionLauncher = rememberLauncherForActivityResult(
+                    contract = ActivityResultContracts.RequestPermission()
+                ) { isGranted ->
+                    hasSelectPermission = isGranted
+                    musicViewModel.deployAndScan()
+                }
 
                 Box(
                     modifier = Modifier
@@ -97,7 +124,7 @@ class MainActivity : ComponentActivity() {
                                     )
                                     Spacer(modifier = Modifier.width(10.dp))
                                     Text(
-                                        text = "Aurora Player",
+                                        text = "Player Music",
                                         fontSize = 24.sp,
                                         fontWeight = FontWeight.ExtraBold,
                                         color = TextWhite,
@@ -140,13 +167,13 @@ class MainActivity : ComponentActivity() {
 
                                         Column(modifier = Modifier.weight(1f)) {
                                             Text(
-                                                text = "Ambient Chords Synthesizer",
-                                                fontSize = 11.sp,
+                                                text = "Local Storage Audio Player",
+                                                fontSize = 12.sp,
                                                 fontWeight = FontWeight.Bold,
                                                 color = trackVibrantColor
                                             )
                                             Text(
-                                                text = "Generating procedural chord pads in real-time, completely offline.",
+                                                text = "Playing high-fidelity local content and extracting synced .lrc lyric files dynamically.",
                                                 fontSize = 13.sp,
                                                 color = TextGrey,
                                                 maxLines = 2,
@@ -158,15 +185,54 @@ class MainActivity : ComponentActivity() {
 
                                 Spacer(modifier = Modifier.height(16.dp))
 
-                                // Song Headers Label
-                                Text(
-                                    text = "AVAILABLE FREQUENCY CHANNELS",
-                                    fontSize = 11.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = TextGrey,
-                                    letterSpacing = 1.sp,
-                                    modifier = Modifier.padding(start = 4.dp, bottom = 8.dp)
-                                )
+                                // Song Headers Label with Rescan/Permission buttons
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(start = 4.dp, bottom = 8.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.SpaceBetween
+                                ) {
+                                    Text(
+                                        text = "MY LIBRARY (${songs.size} SONGS)",
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = TextGrey,
+                                        letterSpacing = 1.sp
+                                    )
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        if (!hasSelectPermission) {
+                                            Text(
+                                                text = "AUTHENTICATE SCAN",
+                                                fontSize = 11.sp,
+                                                fontWeight = FontWeight.ExtraBold,
+                                                color = trackVibrantColor,
+                                                modifier = Modifier
+                                                    .clickable {
+                                                        val permission = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                                                            android.Manifest.permission.READ_MEDIA_AUDIO
+                                                        } else {
+                                                            android.Manifest.permission.READ_EXTERNAL_STORAGE
+                                                        }
+                                                        permissionLauncher.launch(permission)
+                                                    }
+                                                    .padding(horizontal = 8.dp, vertical = 4.dp)
+                                            )
+                                        } else {
+                                            IconButton(
+                                                onClick = { musicViewModel.deployAndScan() },
+                                                modifier = Modifier.size(24.dp)
+                                            ) {
+                                                Icon(
+                                                    imageVector = Icons.Rounded.Refresh,
+                                                    contentDescription = "Rescan",
+                                                    tint = TextWhite.copy(alpha = 0.6f),
+                                                    modifier = Modifier.size(16.dp)
+                                                )
+                                            }
+                                        }
+                                    }
+                                }
 
                                 // Track List
                                 LazyColumn(
@@ -176,8 +242,8 @@ class MainActivity : ComponentActivity() {
                                     verticalArrangement = Arrangement.spacedBy(10.dp),
                                     contentPadding = PaddingValues(bottom = 100.dp)
                                 ) {
-                                    items(musicViewModel.songsList) { song ->
-                                        val isCurrent = song.id == currentSong.id
+                                    items(songs) { song ->
+                                        val isCurrent = song.dataPath == currentSong?.dataPath
                                         GlassCard(
                                             modifier = Modifier
                                                 .fillMaxWidth()
@@ -192,38 +258,13 @@ class MainActivity : ComponentActivity() {
                                                 verticalAlignment = Alignment.CenterVertically,
                                                 modifier = Modifier.fillMaxWidth()
                                             ) {
-                                                // Minimalist Soundwave Indicator or Play State Icon
-                                                Box(
-                                                    modifier = Modifier
-                                                        .size(46.dp)
-                                                        .clip(RoundedCornerShape(10.dp))
-                                                        .background(
-                                                            if (isCurrent) {
-                                                                Brush.linearGradient(
-                                                                    listOf(
-                                                                        song.dominantColor,
-                                                                        song.vibrantColor
-                                                                    )
-                                                                )
-                                                            } else {
-                                                                Brush.linearGradient(
-                                                                    listOf(
-                                                                        GlassWhite,
-                                                                        Color.Transparent
-                                                                    )
-                                                                )
-                                                            }
-                                                        ),
-                                                    contentAlignment = Alignment.Center
-                                                ) {
-                                                    Icon(
-                                                        imageVector = if (isCurrent && isPlaying) Icons.Rounded.GraphicEq else Icons.Rounded.PlayArrow,
-                                                        contentDescription = null,
-                                                        tint = if (isCurrent) Color.White else TextWhite.copy(
-                                                            alpha = 0.7f
-                                                        )
-                                                    )
-                                                }
+                                                // Real Album Art indicator / Soundwave
+                                                SongArtworkIndicator(
+                                                    song = song,
+                                                    isCurrent = isCurrent,
+                                                    isPlaying = isPlaying,
+                                                    modifier = Modifier.size(46.dp)
+                                                )
 
                                                 Spacer(modifier = Modifier.width(16.dp))
 
@@ -278,7 +319,7 @@ class MainActivity : ComponentActivity() {
 
                     // 3. Immersive Full-screen Now Playing Overlay
                     AnimatedVisibility(
-                        visible = isPlayerExpanded,
+                        visible = isPlayerExpanded && currentSong != null,
                         enter = slideInVertically(
                             initialOffsetY = { h: Int -> h },
                             animationSpec = tween(450)
@@ -289,22 +330,24 @@ class MainActivity : ComponentActivity() {
                         ) + fadeOut(animationSpec = tween(400)),
                         modifier = Modifier.fillMaxSize()
                     ) {
-                        ExpandedPlayerScreen(
-                            song = currentSong,
-                            isPlaying = isPlaying,
-                            currentTimeSec = currentTimeSec,
-                            volume = volume,
-                            trackDominantColor = trackDominantColor,
-                            trackVibrantColor = trackVibrantColor,
-                            onCollapse = { isPlayerExpanded = false },
-                            onPrev = { musicViewModel.previousSong() },
-                            onNext = { musicViewModel.nextSong() },
-                            onPlayPause = { musicViewModel.togglePlayback() },
-                            onVolumeChange = { musicViewModel.updateVolume(it) },
-                            onSeek = { musicViewModel.seekTo(it) },
-                            lyrics = currentSong.lyrics,
-                            onLyricLineClick = { line: LyricLine -> musicViewModel.seekTo((line.timeMs / 1000).toInt()) }
-                        )
+                        currentSong?.let { song ->
+                            ExpandedPlayerScreen(
+                                song = song,
+                                isPlaying = isPlaying,
+                                currentTimeSec = currentTimeSec,
+                                volume = volume,
+                                trackDominantColor = trackDominantColor,
+                                trackVibrantColor = trackVibrantColor,
+                                onCollapse = { isPlayerExpanded = false },
+                                onPrev = { musicViewModel.previousSong() },
+                                onNext = { musicViewModel.nextSong() },
+                                onPlayPause = { musicViewModel.togglePlayback() },
+                                onVolumeChange = { musicViewModel.updateVolume(it) },
+                                onSeek = { musicViewModel.seekTo(it) },
+                                lyrics = song.getLyrics(),
+                                onLyricLineClick = { line: LyricLine -> musicViewModel.seekTo((line.timeMs / 1000).toInt()) }
+                            )
+                        }
                     }
                 }
             }
@@ -319,13 +362,71 @@ class MainActivity : ComponentActivity() {
 }
 
 @Composable
-fun GlassFloatingBar(
+fun SongArtworkIndicator(
     song: Song,
+    isCurrent: Boolean,
+    isPlaying: Boolean,
+    modifier: Modifier = Modifier
+) {
+    var bitmap by remember(song.dataPath) { mutableStateOf<android.graphics.Bitmap?>(null) }
+    LaunchedEffect(song.dataPath) {
+        bitmap = LocalMusicScanner.extractEmbeddedAlbumArt(song.dataPath)
+    }
+
+    Box(
+        modifier = modifier
+            .clip(RoundedCornerShape(10.dp))
+            .background(
+                if (isCurrent) {
+                    Brush.linearGradient(listOf(song.dominantColor, song.vibrantColor))
+                } else {
+                    Brush.linearGradient(listOf(GlassWhite, Color.Transparent))
+                }
+            ),
+        contentAlignment = Alignment.Center
+    ) {
+        if (bitmap != null) {
+            Image(
+                bitmap = bitmap!!.asImageBitmap(),
+                contentDescription = null,
+                contentScale = ContentScale.Crop,
+                modifier = Modifier.fillMaxSize()
+            )
+            if (isCurrent && isPlaying) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(Color.Black.copy(alpha = 0.4f)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Rounded.GraphicEq,
+                        contentDescription = null,
+                        tint = Color.White,
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+            }
+        } else {
+            Icon(
+                imageVector = if (isCurrent && isPlaying) Icons.Rounded.GraphicEq else Icons.Rounded.MusicNote,
+                contentDescription = null,
+                tint = if (isCurrent) Color.White else song.vibrantColor,
+                modifier = Modifier.size(22.dp)
+            )
+        }
+    }
+}
+
+@Composable
+fun GlassFloatingBar(
+    song: Song?,
     isPlaying: Boolean,
     currentTimeSec: Int,
     onPlayPause: () -> Unit,
     onExpand: () -> Unit
 ) {
+    if (song == null) return
     val progress = currentTimeSec.toFloat() / song.durationSeconds.toFloat()
     val barColor = song.vibrantColor
 
@@ -485,7 +586,7 @@ fun ExpandedPlayerScreen(
                 }
 
                 IconButton(
-                    onClick = { /* Menu item placeholder or harmless click feedback */ },
+                    onClick = { /* harmless click feedback */ },
                     modifier = Modifier
                         .clip(CircleShape)
                         .background(GlassWhite)

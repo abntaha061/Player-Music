@@ -1,8 +1,10 @@
 package com.example.ui.components
 
+import android.graphics.Bitmap
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -25,6 +27,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.graphics.graphicsLayer
@@ -35,8 +38,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.example.ui.LyricLine
-import com.example.ui.Song
+import com.example.util.LocalMusicScanner
+import com.example.util.LyricLine
+import com.example.util.Song
 import com.example.ui.theme.*
 
 @Composable
@@ -80,6 +84,12 @@ fun CrispAlbumArt(
     isPlaying: Boolean,
     modifier: Modifier = Modifier
 ) {
+    var albumArtBitmap by remember(song.dataPath) { mutableStateOf<Bitmap?>(null) }
+    
+    LaunchedEffect(song.dataPath) {
+        albumArtBitmap = LocalMusicScanner.extractEmbeddedAlbumArt(song.dataPath)
+    }
+
     val infiniteTransition = rememberInfiniteTransition(label = "DiskRotate")
     val rotationAngle by infiniteTransition.animateFloat(
         initialValue = 0f,
@@ -123,33 +133,55 @@ fun CrispAlbumArt(
             .border(2.dp, Color.White.copy(alpha = 0.08f), CircleShape),
         contentAlignment = Alignment.Center
     ) {
-        // Disk grooves
-        Canvas(modifier = Modifier.fillMaxSize()) {
-            val r = size.minDimension / 2f
-            for (i in 1..8) {
-                drawCircle(
-                    color = Color.White.copy(alpha = 0.015f * i),
-                    radius = r * (i / 10f),
-                    style = androidx.compose.ui.graphics.drawscope.Stroke(width = 1.dp.toPx())
+        if (albumArtBitmap != null) {
+            Image(
+                bitmap = albumArtBitmap!!.asImageBitmap(),
+                contentDescription = "Album Art",
+                contentScale = ContentScale.Crop,
+                modifier = Modifier
+                    .fillMaxSize()
+                    .clip(CircleShape)
+            )
+            // Grooves on top
+            Canvas(modifier = Modifier.fillMaxSize()) {
+                val r = size.minDimension / 2f
+                for (i in 2..8) {
+                    drawCircle(
+                        color = Color.White.copy(alpha = 0.008f * i),
+                        radius = r * (i / 10f),
+                        style = Stroke(width = 1.dp.toPx())
+                    )
+                }
+            }
+        } else {
+            // Disk grooves
+            Canvas(modifier = Modifier.fillMaxSize()) {
+                val r = size.minDimension / 2f
+                for (i in 1..8) {
+                    drawCircle(
+                        color = Color.White.copy(alpha = 0.015f * i),
+                        radius = r * (i / 10f),
+                        style = Stroke(width = 1.dp.toPx())
+                    )
+                }
+            }
+
+            // Center visual core
+            Box(
+                modifier = Modifier
+                    .fillMaxSize(0.38f)
+                    .clip(CircleShape)
+                    .background(Color(0xFF04040A))
+                    .border(3.dp, Color.White.copy(alpha = 0.15f), CircleShape),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Filled.MusicNote,
+                    contentDescription = null,
+                    tint = song.vibrantColor,
+                    modifier = Modifier.fillMaxSize(0.5f)
                 )
             }
-        }
-
-        // Center visual core
-        Box(
-            modifier = Modifier
-                .fillMaxSize(0.38f)
-                .clip(CircleShape)
-                .background(Color(0xFF04040A))
-                .border(3.dp, Color.White.copy(alpha = 0.15f), CircleShape),
-            contentAlignment = Alignment.Center
-        ) {
-            Icon(
-                imageVector = Icons.Filled.MusicNote,
-                contentDescription = null,
-                tint = song.vibrantColor,
-                modifier = Modifier.fillMaxSize(0.5f)
-            )
         }
     }
 }
@@ -253,5 +285,3 @@ fun SyncedLyricsView(
         }
     }
 }
-
-
