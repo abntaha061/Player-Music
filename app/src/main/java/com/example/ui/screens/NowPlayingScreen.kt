@@ -40,6 +40,7 @@ import com.example.data.SongEntity
 import com.example.player.PlaybackState
 import com.example.ui.MusicPlayerViewModel
 import com.example.ui.components.glassmorphic
+import com.example.ui.components.AnimatedBreathingRadialGradient
 import com.example.ui.theme.TextMuted
 import com.example.util.LyricLine
 import kotlinx.coroutines.launch
@@ -99,18 +100,11 @@ fun NowPlayingScreen(
     val song = currentSong!!
 
     Box(modifier = Modifier.fillMaxSize()) {
-        // 1. Base Layer: Dynamic vertical/diagonal palette gradient background based on current album colors
+        // 1. Base Layer: Solid Deep Dark Space Black Background
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .background(
-                    Brush.verticalGradient(
-                        colors = listOf(
-                            animatedDominant.copy(alpha = 0.9f),
-                            animatedVibrant.copy(alpha = 0.9f)
-                        )
-                    )
-                )
+                .background(Color(0xFF040408))
         )
 
         // 2. Mid Layer: Glassmorphism Blur of the current artwork (preserved as-is)
@@ -121,11 +115,17 @@ fun NowPlayingScreen(
                 contentScale = ContentScale.Crop,
                 modifier = Modifier
                     .fillMaxSize()
-                    .blur(50.dp, edgeTreatment = BlurredEdgeTreatment.Unbounded)
             )
         }
 
-        // 3. Top Scrim Layer: Dark Scrim (28% opacity) above gradient to safeguard high-contrast text visibility
+        // 3. Animated Breathing Radial Gradient exactly centered
+        AnimatedBreathingRadialGradient(
+            animatedDominant = animatedDominant,
+            animatedVibrant = animatedVibrant,
+            modifier = Modifier.fillMaxSize()
+        )
+
+        // 4. Top Scrim Layer: Dark Scrim (28% opacity) above gradient to safeguard high-contrast text visibility
         Box(
             modifier = Modifier
                 .fillMaxSize()

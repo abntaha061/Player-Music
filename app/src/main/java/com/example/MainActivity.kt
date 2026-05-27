@@ -197,101 +197,11 @@ fun MainAppScaffold(musicViewModel: MusicPlayerViewModel = viewModel()) {
                 animationSpec = tween(durationMillis = 350)
             ) + fadeOut()
         ) {
-            val targetDominantColor by musicViewModel.trackDominantColor.collectAsState()
-            val targetVibrantColor by musicViewModel.trackVibrantColor.collectAsState()
-            val ambientCover by musicViewModel.trackAmbientCover.collectAsState()
-
-            val animatedDominant by animateColorAsState(
-                targetValue = targetDominantColor,
-                animationSpec = tween(1400, easing = LinearEasing),
-                label = "AnimDominantColorNP"
-            )
-            val animatedVibrant by animateColorAsState(
-                targetValue = targetVibrantColor,
-                animationSpec = tween(1400, easing = LinearEasing),
-                label = "AnimVibrantColorNP"
-            )
-
-            val infiniteTransition = rememberInfiniteTransition(label = "NowPlayingAmbientGlow")
-
-            val pulseScale1 by infiniteTransition.animateFloat(
-                initialValue = 0.15f,
-                targetValue = 0.28f,
-                animationSpec = infiniteRepeatable(
-                    animation = tween(8000, easing = LinearEasing),
-                    repeatMode = RepeatMode.Reverse
-                ),
-                label = "Pulse1"
-            )
-
-            val pulseScale2 by infiniteTransition.animateFloat(
-                initialValue = 0.12f,
-                targetValue = 0.24f,
-                animationSpec = infiniteRepeatable(
-                    animation = tween(11000, easing = LinearEasing),
-                    repeatMode = RepeatMode.Reverse
-                ),
-                label = "Pulse2"
-            )
-
             Box(
                 modifier = Modifier
                     .fillMaxSize()
                     .background(Color(0xFF040408)) // 100% Opaque Solid base to block home screen contents
             ) {
-                // 1. Center-cropped, heavy blurred background
-                ambientCover?.let { bitmap ->
-                    Image(
-                        bitmap = bitmap.asImageBitmap(),
-                        contentDescription = null,
-                        contentScale = ContentScale.Crop,
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .blur(60.dp, edgeTreatment = BlurredEdgeTreatment.Unbounded)
-                    )
-                }
-
-                // 2. Underlay drawing bubbles and dark overlay
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .drawBehind {
-                            val width = size.width
-                            val height = size.height
-
-                            // Glowing dynamic dominant light bubble
-                            drawCircle(
-                                brush = Brush.radialGradient(
-                                    colors = listOf(
-                                        animatedDominant.copy(alpha = 0.35f),
-                                        animatedDominant.copy(alpha = 0.12f),
-                                        Color.Transparent
-                                    ),
-                                    center = Offset(width * 0.25f, height * 0.3f),
-                                    radius = width * pulseScale1 * 2f
-                                )
-                            )
-
-                            // Glowing dynamic vibrant sibling light bubble
-                            drawCircle(
-                                brush = Brush.radialGradient(
-                                    colors = listOf(
-                                        animatedVibrant.copy(alpha = 0.38f),
-                                        animatedVibrant.copy(alpha = 0.08f),
-                                        Color.Transparent
-                                    ),
-                                    center = Offset(width * 0.8f, height * 0.75f),
-                                    radius = width * pulseScale2 * 2.5f
-                                )
-                            )
-
-                            // Heavy dark contrast overlay (65%) to ensure lyrics are 100% white-crisp and readable
-                            drawRect(
-                                color = Color(0xFF040408).copy(alpha = 0.65f)
-                            )
-                        }
-                )
-
                 NowPlayingScreen(
                     viewModel = musicViewModel,
                     onCollapse = { isPlayerExpanded = false }

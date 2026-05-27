@@ -58,6 +58,100 @@ fun Modifier.glassmorphic(
     )
 
 /**
+ * Animated ambient backing glow simulating lights breathing in a center-focused radial gradient.
+ * Uses a gorgeous 15s breathing loop (pulsing radius & subtle center shift) for visual depth.
+ */
+@Composable
+fun AnimatedBreathingRadialGradient(
+    animatedDominant: Color,
+    animatedVibrant: Color,
+    modifier: Modifier = Modifier
+) {
+    val infiniteTransition = rememberInfiniteTransition(label = "BreathingBackground")
+
+    // Pulsing radius scale: pulses from 0.60f to 0.90f of the screen size every 15 seconds
+    val radiusPulse by infiniteTransition.animateFloat(
+        initialValue = 0.60f,
+        targetValue = 0.90f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(15000, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "RadiusPulse"
+    )
+
+    // Breathing offset shifts around center of screen (subtle ±30 to 45 pixels loop)
+    val centerShiftX by infiniteTransition.animateFloat(
+        initialValue = -35f,
+        targetValue = 35f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(15000, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "CenterShiftX"
+    )
+
+    val centerShiftY by infiniteTransition.animateFloat(
+        initialValue = -45f,
+        targetValue = 45f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(15000, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "CenterShiftY"
+    )
+
+    Canvas(
+        modifier = modifier
+            .fillMaxSize()
+    ) {
+        val width = size.width
+        val height = size.height
+        val center = Offset(width / 2f, height / 2f)
+
+        // 1. Dominant color radial gradient centered closely around the middle of the screen
+        val dominantRadius = maxOf(width, height) * radiusPulse * 0.70f
+        val dominantCenter = Offset(
+            center.x + centerShiftX,
+            center.y + centerShiftY
+        )
+        drawCircle(
+            brush = Brush.radialGradient(
+                colors = listOf(
+                    animatedDominant.copy(alpha = 0.35f),
+                    animatedDominant.copy(alpha = 0.12f),
+                    Color.Transparent
+                ),
+                center = dominantCenter,
+                radius = dominantRadius
+            ),
+            center = dominantCenter,
+            radius = dominantRadius
+        )
+
+        // 2. Vibrant color radial gradient, slightly larger & pulsing in reverse phase, near the middle
+        val vibrantRadius = maxOf(width, height) * (1.50f - radiusPulse) * 0.65f
+        val vibrantCenter = Offset(
+            center.x - centerShiftX,
+            center.y - centerShiftY
+        )
+        drawCircle(
+            brush = Brush.radialGradient(
+                colors = listOf(
+                    animatedVibrant.copy(alpha = 0.40f),
+                    animatedVibrant.copy(alpha = 0.08f),
+                    Color.Transparent
+                ),
+                center = vibrantCenter,
+                radius = vibrantRadius
+            ),
+            center = vibrantCenter,
+            radius = vibrantRadius
+        )
+    }
+}
+
+/**
  * Animated ambient backing glow simulating lights breathing and bleeding behind the glass.
  * Uses dynamic track-derived palette extraction to update the background atmosphere on track changes.
  */
@@ -82,39 +176,10 @@ fun AmbientGlassBackground(
         label = "AnimVibrantColor"
     )
 
-    val infiniteTransition = rememberInfiniteTransition(label = "AmbientGlow")
-
-    val pulseScale1 by infiniteTransition.animateFloat(
-        initialValue = 0.15f,
-        targetValue = 0.28f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(8000, easing = LinearEasing),
-            repeatMode = RepeatMode.Reverse
-        ),
-        label = "Pulse1"
-    )
-
-    val pulseScale2 by infiniteTransition.animateFloat(
-        initialValue = 0.12f,
-        targetValue = 0.24f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(11000, easing = LinearEasing),
-            repeatMode = RepeatMode.Reverse
-        ),
-        label = "Pulse2"
-    )
-
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(
-                Brush.verticalGradient(
-                    colors = listOf(
-                        animatedDominant.copy(alpha = 0.9f),
-                        animatedVibrant.copy(alpha = 0.9f)
-                    )
-                )
-            )
+            .background(SpaceBlack)
     ) {
         // 1. Correctly cropped, blurred, non-distorted album artwork background (Glassmorphism blur is preserved)
         ambientCover?.let { bitmap ->
@@ -124,44 +189,14 @@ fun AmbientGlassBackground(
                 contentScale = ContentScale.Crop,
                 modifier = Modifier
                     .fillMaxSize()
-                    .blur(50.dp, edgeTreatment = BlurredEdgeTreatment.Unbounded)
             )
         }
 
-        // 2. Dynamic glowing bubbles for visual depth
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .drawBehind {
-                    val width = size.width
-                    val height = size.height
-
-                    // Glowing dynamic dominant light bubble
-                    drawCircle(
-                        brush = Brush.radialGradient(
-                            colors = listOf(
-                                animatedDominant.copy(alpha = 0.22f),
-                                animatedDominant.copy(alpha = 0.07f),
-                                Color.Transparent
-                            ),
-                            center = Offset(width * 0.25f, height * 0.3f),
-                            radius = width * pulseScale1 * 2f
-                        )
-                    )
-
-                    // Glowing dynamic vibrant sibling light bubble
-                    drawCircle(
-                        brush = Brush.radialGradient(
-                            colors = listOf(
-                                animatedVibrant.copy(alpha = 0.25f),
-                                animatedVibrant.copy(alpha = 0.06f),
-                                Color.Transparent
-                            ),
-                            center = Offset(width * 0.8f, height * 0.75f),
-                            radius = width * pulseScale2 * 2.5f
-                        )
-                    )
-                }
+        // 2. Animated Breathing Radial Gradient exactly centered
+        AnimatedBreathingRadialGradient(
+            animatedDominant = animatedDominant,
+            animatedVibrant = animatedVibrant,
+            modifier = Modifier.fillMaxSize()
         )
 
         // 3. Perfect transparent dark overlay scrim (28% opacity) above base gradient to ensure maximum contrast and clear text readability
