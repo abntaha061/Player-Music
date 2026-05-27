@@ -98,46 +98,68 @@ object LocalMusicScanner {
         return context.getExternalFilesDir(Environment.DIRECTORY_MUSIC) ?: context.filesDir
     }
 
-    // Creates beautiful 20-second simulated local audio tracks if the storage is completely empty
+    // Creates beautiful 30-second simulated local audio tracks if the storage is completely empty
     fun deploySampleLocalTracks(context: Context) {
         val musicDir = getSampleMusicDir(context)
         if (!musicDir.exists()) {
             musicDir.mkdirs()
         }
 
-        val track1Sound = File(musicDir, "Midnight_Coffee.mp3")
-        val track1Lrc = File(musicDir, "Midnight_Coffee.lrc")
-        val track2Sound = File(musicDir, "Neon_Horizon.mp3")
-        val track2Lrc = File(musicDir, "Neon_Horizon.lrc")
+        // Clean up old sample files
+        File(musicDir, "Midnight_Coffee.mp3").delete()
+        File(musicDir, "Midnight_Coffee.lrc").delete()
+        File(musicDir, "Neon_Horizon.mp3").delete()
+        File(musicDir, "Neon_Horizon.lrc").delete()
+
+        val track1Sound = File(musicDir, "Aml_Bokra.mp3")
+        val track1Lrc = File(musicDir, "Aml_Bokra.lrc")
+        val track2Sound = File(musicDir, "3atma.mp3")
+        val track2Lrc = File(musicDir, "3atma.lrc")
+        val track3Sound = File(musicDir, "3ein_Se7reya.mp3")
+        val track3Lrc = File(musicDir, "3ein_Se7reya.lrc")
 
         if (!track1Sound.exists()) {
-            writeProceduralWavFile(track1Sound, 220f) // Soft warm A3 bass wave
+            writeProceduralWavFile(track1Sound, 261.63f) // Middle C4 wave for Aml Bokra
             track1Lrc.writeText(
                 """
-                [00:00.00]• Organic Coffeehouse Jazz Ambient •
-                [00:02.50]Pouring a dynamic warm cup of coffee...
-                [00:06.00]Raindrops rhythmically splashing against the window pane
-                [00:10.50]Warm lights softly reflecting off wet pavement outside
-                [00:15.00]This lrc file is parsed directly from local storage
-                [00:19.00]Enjoying a peaceful late night melody
-                [00:23.00]Keeping thoughts comfortable and cozy
-                [00:27.00]• Coffee bean aroma fading out •
+                [00:00.00]أمل بكرة - نبضات الكوكب (Aml Bokra)
+                [00:03.00]في نبض الكوكب نجد الأمل والضمير المشرق
+                [00:07.50]نهر ينادينا لنرسم حلم بكرة بألوان الفجر
+                [00:12.00]كل نبضة تعيد الحياة وتنسج عهد اللقاء
+                [00:16.50]طريقنا طويل ولكن سنمضى معاً يداً بيد
+                [00:21.00]فوق السحاب سنحلق كأسراب طيور السلام
+                [00:25.00]غداً يوم جديد وسنصنع فيه فجراً بهياً
                 """.trimIndent()
             )
         }
 
         if (!track2Sound.exists()) {
-            writeProceduralWavFile(track2Sound, 330f) // Fluid bright E4 wave
+            writeProceduralWavFile(track2Sound, 220f) // A3 baseline wave for 3atma
             track2Lrc.writeText(
                 """
-                [00:00.00]• Neon Horizon Retro-wave Pad •
-                [00:03.00]Starting the low-latency synthesizer engine
-                [00:07.50]Sailing into an endless cyber sunset drive
-                [00:12.00]Watching neon grid towers slide past
-                [00:16.50]Real-time physical .mp3 player playback active
-                [00:21.00]Perfect coordination with matched LRC files
-                [00:25.00]Glow vectors shining in the rear mirror
-                [00:29.00]• Sunset loop complete •
+                [00:00.00]عتمة - لحن الهدوء الممزوج (3atma)
+                [00:03.00]في هدأة الليل نبحر بلا منبر وبلا شراع يحمينا
+                [00:07.50]نسامر العتمة الدامسة ونمحو مر الفراق والضياع الحزين
+                [00:12.00]ونوقد شمعة في الزوايا الدافئة لننهي فصول الوداع مريرة
+                [00:16.50]حلم تلو حلم يتسع كحلقات كون وساع يتجاوز الخيال
+                [00:21.00]عتمة الليل تتجلى تماماً حين تشرق شمس القاع وتشرق القلوب
+                [00:25.00]نبحث عن السلام في عتمة الليل السرية المريحة
+                [00:29.00]نغمات دافئة تتسلل كأشعة النور الذهبية
+                """.trimIndent()
+            )
+        }
+
+        if (!track3Sound.exists()) {
+            writeProceduralWavFile(track3Sound, 329.63f) // E4 wave for 3ein Se7reya
+            track3Lrc.writeText(
+                """
+                [00:00.00]عين سحرية - ألوان النور (3in Se7reya)
+                [00:03.00]من عين سحرية نرى العجائب والجمال الكوني
+                [00:07.50]ألوان النور تنبثق في الصمت تضيء دروبنا
+                [00:12.00]سحر ينهمر كشلال متلألئ من نجوم السماء
+                [00:16.50]كل نظرة تكشف أسرار الحياة المخبوءة بين السطور
+                [00:21.00]سنرقص مع الضوء في لوحة فنية ساحرة
+                [00:25.00]فن دائم وجمال يتجدد مع صباح كل يوم
                 """.trimIndent()
             )
         }
@@ -212,8 +234,28 @@ object LocalMusicScanner {
                 ext == "mp3" || ext == "wav" || ext == "m4a" || ext == "ogg"
             }
             audioFiles?.forEach { file ->
-                val title = file.nameWithoutExtension.replace('_', ' ')
-                val artist = if (file.name.contains("Midnight")) "Jazz Ambience" else "Synthesizer Retro"
+                var title = file.nameWithoutExtension.replace('_', ' ')
+                var artist = "Unknown Artist"
+                var album = "Aurora Local"
+                
+                when (file.name) {
+                    "Aml_Bokra.mp3" -> {
+                        title = "أمل بكرة / Aml Bokra"
+                        artist = "نبضات الكوكب / Planet Heartbeats"
+                        album = "Planet Heartbeats"
+                    }
+                    "3atma.mp3" -> {
+                        title = "عتمة / 3atma"
+                        artist = "لحن الهدوء الممزوج / Soft Symphony"
+                        album = "Soft Symphony"
+                    }
+                    "3ein_Se7reya.mp3" -> {
+                        title = "عين سحرية / 3ein Se7reya"
+                        artist = "ألوان النور / Colors of Light"
+                        album = "Colors of Light"
+                    }
+                }
+                
                 val duration = 30 // Sample tracks are 30s
                 
                 // Color mapping: generate custom pleasant palettes for local tracks
@@ -224,7 +266,7 @@ object LocalMusicScanner {
                         id = "local_file_${file.name.hashCode()}",
                         title = title,
                         artist = artist,
-                        album = "Aurora Local",
+                        album = album,
                         durationSeconds = duration,
                         dataPath = file.absolutePath,
                         isSample = true,
