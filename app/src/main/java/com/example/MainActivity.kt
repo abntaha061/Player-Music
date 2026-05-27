@@ -1,10 +1,13 @@
 package com.example
 
+import android.app.Activity
 import android.graphics.Bitmap
 import android.os.Bundle
+import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
+import androidx.compose.ui.platform.LocalContext
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.animation.*
 import androidx.compose.animation.core.tween
@@ -81,15 +84,25 @@ fun MainAppScaffold(musicViewModel: MusicPlayerViewModel = viewModel()) {
     val activeColor by musicViewModel.trackDominantColor.collectAsState()
     val ambientCover by musicViewModel.trackAmbientCover.collectAsState()
 
+    val context = LocalContext.current
+    var lastBackPressTime by remember { mutableStateOf(0L) }
+
     // System Back Press Handler inside Jetpack Compose:
-    // If Now Playing is expanded, collapse it first.
-    // Else if an Artist Screen is open, return back to Home.
-    // Else, perform standard exit.
-    BackHandler(enabled = isPlayerExpanded || selectedArtistName != null) {
+    BackHandler(enabled = true) {
         if (isPlayerExpanded) {
             isPlayerExpanded = false
         } else if (selectedArtistName != null) {
             selectedArtistName = null
+        } else if (currentPage != NavPage.HOME) {
+            currentPage = NavPage.HOME
+        } else {
+            val currentTime = System.currentTimeMillis()
+            if (currentTime - lastBackPressTime < 2000) {
+                (context as? Activity)?.finish()
+            } else {
+                lastBackPressTime = currentTime
+                Toast.makeText(context, "اضغط مرة أخرى للخروج", Toast.LENGTH_SHORT).show()
+            }
         }
     }
 

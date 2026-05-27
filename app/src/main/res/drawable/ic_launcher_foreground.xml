@@ -6,58 +6,38 @@
     android:viewportWidth="108"
     android:viewportHeight="108">
 
-    <!-- Glowing Outer Aura Ring -->
+    <!-- Elegant Thin Circular Gradient Border Ring -->
     <path
-        android:pathData="M54,23A31,31 0,1,1 53.9,23Z"
-        android:strokeWidth="1.5"
-        android:strokeColor="#3300E5FF"
-        android:fillColor="#00000000" />
-
-    <!-- Vinyl Disc Main Body -->
-    <path android:pathData="M54,26A28,28 0,1,0 54,82A28,28 0,1,0 54,26Z">
-        <aapt:attr name="android:fillColor">
+        android:pathData="M54,18A36,36 0 1,1 53.9,18Z"
+        android:strokeWidth="1.8"
+        android:fillColor="#00000000">
+        <aapt:attr name="android:strokeColor">
             <gradient
-                android:startX="26"
-                android:startY="26"
-                android:endX="82"
-                android:endY="82"
+                android:startX="20"
+                android:startY="20"
+                android:endX="88"
+                android:endY="88"
                 android:type="linear">
-                <item android:offset="0.0" android:color="#00ADB5" />
-                <item android:offset="0.5" android:color="#2A2E3D" />
-                <item android:offset="1.0" android:color="#BD83FF" />
+                <item android:offset="0.0" android:color="#FF007F" />
+                <item android:offset="0.5" android:color="#7B2CBF" />
+                <item android:offset="1.0" android:color="#00ADB5" />
             </gradient>
         </aapt:attr>
     </path>
 
-    <!-- Concentric Vinyl Grooves -->
-    <path
-        android:pathData="M54,34A20,20 0,1,1 53.9,34Z"
-        android:strokeWidth="0.8"
-        android:strokeColor="#22FFFFFF"
-        android:fillColor="#00000000" />
-    <path
-        android:pathData="M54,40A14,14 0,1,1 53.9,40Z"
-        android:strokeWidth="0.8"
-        android:strokeColor="#22FFFFFF"
-        android:fillColor="#00000000" />
-
-    <!-- Center Glowing Disc Core -->
-    <path android:pathData="M54,46A8,8 0,1,0 54,62A8,8 0,1,0 54,46Z">
+    <!-- Colorful Gradient Double Music Note -->
+    <path android:pathData="M30,64 a8,8 0 1,0 16,0 a8,8 0 1,0 -16,0 M58,56 a8,8 0 1,0 16,0 a8,8 0 1,0 -16,0 M43,64 L43,34 L46,34 L46,64 Z M71,56 L71,26 L74,26 L74,56 Z M43,22 L74,14 L74,20 L43,28 Z M43,31 L74,23 L74,29 L43,37 Z">
         <aapt:attr name="android:fillColor">
             <gradient
-                android:startX="46"
-                android:startY="46"
-                android:endX="62"
-                android:endY="62"
+                android:startX="30"
+                android:startY="14"
+                android:endX="74"
+                android:endY="72"
                 android:type="linear">
-                <item android:offset="0.0" android:color="#00E5FF" />
-                <item android:offset="1.0" android:color="#FF5722" />
+                <item android:offset="0.0" android:color="#FF007F" />
+                <item android:offset="0.5" android:color="#7B2CBF" />
+                <item android:offset="1.0" android:color="#00ADB5" />
             </gradient>
         </aapt:attr>
     </path>
-
-    <!-- Center Spindle Hole -->
-    <path
-        android:pathData="M54,51A3,3 0,1,1 53.9,51Z"
-        android:fillColor="#090A11" />
 </vector>
