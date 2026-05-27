@@ -414,7 +414,7 @@ fun MiniAudioController(
             // Rotating disk album icon lookalike
             Box(
                 modifier = Modifier
-                    .size(42.dp)
+                    .size(48.dp)
                     .clip(RoundedCornerShape(8.dp))
                     .background(Color.White.copy(alpha = 0.08f)),
                 contentAlignment = Alignment.Center
@@ -424,7 +424,9 @@ fun MiniAudioController(
                         bitmap = albumArt.asImageBitmap(),
                         contentDescription = "Mini Player Album Art",
                         contentScale = ContentScale.Crop,
-                        modifier = Modifier.fillMaxSize()
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .clip(RoundedCornerShape(8.dp))
                     )
                 } else {
                     Icon(

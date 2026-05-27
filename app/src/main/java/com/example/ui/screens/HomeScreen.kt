@@ -31,6 +31,7 @@ import androidx.compose.ui.unit.sp
 import com.example.data.SongEntity
 import com.example.ui.MusicPlayerViewModel
 import com.example.ui.components.glassmorphic
+import com.example.ui.components.AlbumArtView
 import com.example.ui.theme.NeonAccent
 import com.example.ui.theme.TextMuted
 
@@ -488,20 +489,13 @@ fun CompactSongRow(
         contentAlignment = Alignment.CenterStart
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Box(
-                modifier = Modifier
-                    .size(40.dp)
-                    .clip(RoundedCornerShape(8.dp))
-                    .background(Color.White.copy(alpha = 0.1f)),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(
-                    imageVector = Icons.Filled.MusicNote,
-                    contentDescription = null,
-                    tint = Color.White.copy(alpha = 0.7f),
-                    modifier = Modifier.size(20.dp)
-                )
-            }
+            AlbumArtView(
+                filePath = song.filePath,
+                title = song.title,
+                artist = song.artist,
+                accentColor = NeonAccent,
+                modifier = Modifier.size(40.dp)
+            )
 
             Spacer(modifier = Modifier.width(12.dp))
 
