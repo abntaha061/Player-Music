@@ -8,12 +8,14 @@ import androidx.lifecycle.viewModelScope
 import com.example.util.LocalMusicScanner
 import com.example.util.LyricLine
 import com.example.util.Song
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.io.File
 
 class MusicPlayerViewModel(application: Application) : AndroidViewModel(application) {
@@ -50,8 +52,10 @@ class MusicPlayerViewModel(application: Application) : AndroidViewModel(applicat
     fun deployAndScan() {
         viewModelScope.launch {
             val context = getApplication<Application>()
-            // Scan directories and media store
-            val scannedSongs = LocalMusicScanner.scanDeviceMusic(context)
+            // Scan directories and media store safely on a background thread
+            val scannedSongs = withContext(Dispatchers.IO) {
+                LocalMusicScanner.scanDeviceMusic(context)
+            }
             _songs.value = scannedSongs
 
             if (scannedSongs.isNotEmpty() && _currentSong.value == null) {
@@ -68,22 +72,26 @@ class MusicPlayerViewModel(application: Application) : AndroidViewModel(applicat
             _currentSong.value = song
             _currentTimeSec.value = 0
 
-            // Extract real album art and compute Dominant & Vibrant colors using PaletteHelper
+            // Extract real album art and compute Dominant & Vibrant colors using PaletteHelper on IO pool
             val context = getApplication<Application>()
-            val artBitmap = LocalMusicScanner.extractEmbeddedAlbumArt(context, song.dataPath, song.id)
-            val extractedColors = com.example.util.PaletteHelper.extractColors(
-                bitmap = artBitmap,
-                defaultDominant = song.dominantColor,
-                defaultVibrant = song.vibrantColor
-            )
+            val extractedColors = withContext(Dispatchers.IO) {
+                val artBitmap = LocalMusicScanner.extractEmbeddedAlbumArt(context, song.dataPath, song.id)
+                com.example.util.PaletteHelper.extractColors(
+                    bitmap = artBitmap,
+                    defaultDominant = song.dominantColor,
+                    defaultVibrant = song.vibrantColor
+                )
+            }
             _trackDominantColor.value = extractedColors.first
             _trackVibrantColor.value = extractedColors.second
 
             try {
-                val player = MediaPlayer().apply {
-                    setDataSource(song.dataPath)
-                    setVolume(_volume.value, _volume.value)
-                    prepare()
+                val player = withContext(Dispatchers.IO) {
+                    MediaPlayer().apply {
+                        setDataSource(song.dataPath)
+                        setVolume(_volume.value, _volume.value)
+                        prepare()
+                    }
                 }
 
                 player.setOnCompletionListener {

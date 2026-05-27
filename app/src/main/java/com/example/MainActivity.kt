@@ -411,6 +411,13 @@ class MainActivity : ComponentActivity() {
                         modifier = Modifier.fillMaxSize()
                     ) {
                         currentSong?.let { song ->
+                            var lyricsList by remember(song.dataPath) { mutableStateOf<List<LyricLine>>(emptyList()) }
+                            LaunchedEffect(song.dataPath) {
+                                lyricsList = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                                    song.getLyrics()
+                                }
+                            }
+
                             ExpandedPlayerScreen(
                                 song = song,
                                 isPlaying = isPlaying,
@@ -424,7 +431,7 @@ class MainActivity : ComponentActivity() {
                                 onPlayPause = { musicViewModel.togglePlayback() },
                                 onVolumeChange = { musicViewModel.updateVolume(it) },
                                 onSeek = { musicViewModel.seekTo(it) },
-                                lyrics = song.getLyrics(),
+                                lyrics = lyricsList,
                                 onLyricLineClick = { line: LyricLine -> musicViewModel.seekTo((line.timeMs / 1000).toInt()) }
                             )
                         }
@@ -451,7 +458,9 @@ fun SongArtworkIndicator(
     val context = androidx.compose.ui.platform.LocalContext.current
     var bitmap by remember(song.dataPath) { mutableStateOf<android.graphics.Bitmap?>(null) }
     LaunchedEffect(song.dataPath) {
-        bitmap = LocalMusicScanner.extractEmbeddedAlbumArt(context, song.dataPath, song.id)
+        bitmap = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+            LocalMusicScanner.extractEmbeddedAlbumArt(context, song.dataPath, song.id)
+        }
     }
 
     Box(
@@ -1216,7 +1225,9 @@ fun SongArtworkCircleIndicator(
     val context = androidx.compose.ui.platform.LocalContext.current
     var bitmap by remember(song.dataPath) { mutableStateOf<android.graphics.Bitmap?>(null) }
     LaunchedEffect(song.dataPath) {
-        bitmap = LocalMusicScanner.extractEmbeddedAlbumArt(context, song.dataPath, song.id)
+        bitmap = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+            LocalMusicScanner.extractEmbeddedAlbumArt(context, song.dataPath, song.id)
+        }
     }
 
     Box(

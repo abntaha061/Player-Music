@@ -166,6 +166,30 @@ object LocalMusicScanner {
         return songsList
     }
 
+    private data class SongMetadata(
+        val durationSeconds: Int,
+        val artist: String?,
+        val album: String?
+    )
+
+    private fun getSongMetadata(dataPath: String): SongMetadata {
+        val retriever = MediaMetadataRetriever()
+        return try {
+            retriever.setDataSource(dataPath)
+            val durStr = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION)
+            val durationMs = durStr?.toLongOrNull() ?: 0L
+            val durationSec = (durationMs / 1000).toInt().coerceAtLeast(1)
+            val artist = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_ARTIST)
+                ?: retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_ALBUMARTIST)
+            val album = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_ALBUM)
+            SongMetadata(durationSec, artist, album)
+        } catch (e: Exception) {
+            SongMetadata(30, null, null)
+        } finally {
+            try { retriever.release() } catch (e: Exception) {}
+        }
+    }
+
     private fun scanDirRecursive(dir: File, songsList: MutableList<Song>) {
         val files = dir.listFiles() ?: return
         for (file in files) {
@@ -176,10 +200,10 @@ object LocalMusicScanner {
                 if (ext == "mp3" || ext == "wav" || ext == "m4a" || ext == "ogg" || ext == "flac") {
                     val dataPath = file.absolutePath
                     if (songsList.none { it.dataPath == dataPath }) {
-                        val duration = getDurationUsingRetriever(dataPath)
+                        val meta = getSongMetadata(dataPath)
                         val title = file.nameWithoutExtension.replace('_', ' ')
-                        val artist = getArtistUsingRetriever(dataPath) ?: "Unknown Artist"
-                        val album = getAlbumUsingRetriever(dataPath) ?: "Local Album"
+                        val artist = meta.artist ?: "Unknown Artist"
+                        val album = meta.album ?: "Local Album"
                         val colors = getColorsForText(title)
                         
                         songsList.add(
@@ -188,7 +212,7 @@ object LocalMusicScanner {
                                 title = title,
                                 artist = artist,
                                 album = album,
-                                durationSeconds = duration,
+                                durationSeconds = meta.durationSeconds,
                                 dataPath = dataPath,
                                 isSample = false,
                                 dominantColor = colors.first,
@@ -198,45 +222,6 @@ object LocalMusicScanner {
                     }
                 }
             }
-        }
-    }
-
-    private fun getDurationUsingRetriever(dataPath: String): Int {
-        val retriever = MediaMetadataRetriever()
-        return try {
-            retriever.setDataSource(dataPath)
-            val durStr = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_DURATION)
-            val durationMs = durStr?.toLongOrNull() ?: 0L
-            (durationMs / 1000).toInt().coerceAtLeast(1)
-        } catch (e: Exception) {
-            30
-        } finally {
-            try { retriever.release() } catch (e: Exception) {}
-        }
-    }
-
-    private fun getArtistUsingRetriever(dataPath: String): String? {
-        val retriever = MediaMetadataRetriever()
-        return try {
-            retriever.setDataSource(dataPath)
-            retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_ARTIST)
-                ?: retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_ALBUMARTIST)
-        } catch (e: Exception) {
-            null
-        } finally {
-            try { retriever.release() } catch (e: Exception) {}
-        }
-    }
-
-    private fun getAlbumUsingRetriever(dataPath: String): String? {
-        val retriever = MediaMetadataRetriever()
-        return try {
-            retriever.setDataSource(dataPath)
-            retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_ALBUM)
-        } catch (e: Exception) {
-            null
-        } finally {
-            try { retriever.release() } catch (e: Exception) {}
         }
     }
 

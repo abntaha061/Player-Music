@@ -88,7 +88,9 @@ fun CrispAlbumArt(
     var albumArtBitmap by remember(song.dataPath) { mutableStateOf<Bitmap?>(null) }
     
     LaunchedEffect(song.dataPath) {
-        albumArtBitmap = LocalMusicScanner.extractEmbeddedAlbumArt(context, song.dataPath, song.id)
+        albumArtBitmap = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+            LocalMusicScanner.extractEmbeddedAlbumArt(context, song.dataPath, song.id)
+        }
     }
 
     val scale by animateFloatAsState(
