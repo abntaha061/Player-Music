@@ -1,313 +1,345 @@
 package com.example.ui
 
-import android.app.Application
-import android.graphics.Bitmap
-import android.util.Log
+import android.media.AudioFormat
+import android.media.AudioManager
+import android.media.AudioTrack
 import androidx.compose.ui.graphics.Color
-import androidx.lifecycle.AndroidViewModel
+import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.example.data.AppDatabase
-import com.example.data.SongEntity
-import com.example.data.SongRepository
-import com.example.player.AudioPlayerManager
-import com.example.player.PlaybackState
-import com.example.player.RepeatMode
-import com.example.util.LyricLine
-import com.example.util.MusicUtil
-import com.example.util.PaletteHelper
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.combine
-import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import kotlin.math.sin
 
-class MusicPlayerViewModel(application: Application) : AndroidViewModel(application) {
-    private val TAG = "MusicPlayerViewModel"
+data class Song(
+    val id: String,
+    val title: String,
+    val artist: String,
+    val album: String,
+    val durationSeconds: Int,
+    val dominantColor: Color,
+    val vibrantColor: Color,
+    val chords: DoubleArray,
+    val lyrics: List<LyricLine>
+)
 
-    private val database = AppDatabase.getDatabase(application)
-    private val repository = SongRepository(application, database.songDao())
-    val playerManager = AudioPlayerManager(application)
+data class LyricLine(
+    val timeMs: Long,
+    val text: String
+)
 
-    // Data lists from repository
-    val allSongs: StateFlow<List<SongEntity>> = repository.allSongs
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+class MusicPlayerViewModel : ViewModel() {
 
-    val favoriteSongs: StateFlow<List<SongEntity>> = repository.favoriteSongs
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+    private val presetSongs = listOf(
+        Song(
+            id = "1",
+            title = "Celestial Aurora",
+            artist = "Luminance",
+            album = "Solar Flares",
+            durationSeconds = 180,
+            dominantColor = Color(0xFFBD83FF),
+            vibrantColor = Color(0xFF00ADB5),
+            chords = doubleArrayOf(261.63, 329.63, 392.00, 493.88), // Cmaj7 (C4, E4, G4, B4)
+            lyrics = listOf(
+                LyricLine(0, "• Ambient Synthesized Prelude •"),
+                LyricLine(4000, "Floating high above the clouds..."),
+                LyricLine(10000, "Where the celestial starlight shines"),
+                LyricLine(16000, "In a peaceful space of thoughts"),
+                LyricLine(22000, "Look at the colors bending),"),
+                LyricLine(28000, "Woven into a glowing aurora..."),
+                LyricLine(35000, "Guiding us safely home."),
+                LyricLine(42000, "No burden too heavy to carry"),
+                LyricLine(48000, "In this quiet cosmic breeze."),
+                LyricLine(55000, "• Smooth Shimmer Transition •"),
+                LyricLine(66000, "The universe expands around us"),
+                LyricLine(74000, "Quietly singing its ancient melody"),
+                LyricLine(81000, "Every frequency in deep harmony..."),
+                LyricLine(92000, "A canvas of electric fields"),
+                LyricLine(100000, "Floating endlessly in the deep night"),
+                LyricLine(112000, "• Gentle Fade Out •")
+            )
+        ),
+        Song(
+            id = "2",
+            title = "Midnight Mirage",
+            artist = "Vortex Field",
+            album = "Event Horizon",
+            durationSeconds = 210,
+            dominantColor = Color(0xFF1E3C72),
+            vibrantColor = Color(0xFFFF5858),
+            chords = doubleArrayOf(293.66, 349.23, 440.00, 523.25), // Dm7 (D4, F4, A4, C5)
+            lyrics = listOf(
+                LyricLine(0, "• Deep Echo Introduction •"),
+                LyricLine(5000, "Into the endless night..."),
+                LyricLine(12000, "We chase a midnight mirage"),
+                LyricLine(18000, "Glow lines cutting the sky"),
+                LyricLine(25000, "Liquid colors overlapping slowly"),
+                LyricLine(32000, "A soft pulse under our feet"),
+                LyricLine(40000, "Resting in a sea of glowing glass"),
+                LyricLine(48000, "• Synthesizer Solitude •"),
+                LyricLine(60000, "No sound can reach us here"),
+                LyricLine(68000, "Safe in the electric wave"),
+                LyricLine(75000, "Where stars slowly dim out"),
+                LyricLine(82000, "Only the aurora remains.")
+            )
+        ),
+        Song(
+            id = "3",
+            title = "Deep Space Solitude",
+            artist = "Cosmo",
+            album = "Vast Void",
+            durationSeconds = 240,
+            dominantColor = Color(0xFF0F2027),
+            vibrantColor = Color(0xFFF09819),
+            chords = doubleArrayOf(329.63, 392.00, 493.88, 587.33), // Em7 (E4, G4, B4, D5)
+            lyrics = listOf(
+                LyricLine(0, "• Hollow Cosmos Introduction •"),
+                LyricLine(6000, "Vastness is our companion..."),
+                LyricLine(14000, "A silent glow in the dark"),
+                LyricLine(22000, "A golden thread through deep space"),
+                LyricLine(30000, "Connecting the constellations"),
+                LyricLine(38000, "Deep warmth in a freezing void"),
+                LyricLine(46000, "Tuning in to the cosmic core"),
+                LyricLine(54000, "• Harmonic Echo Bridge •"),
+                LyricLine(66000, "We are but travelers of light"),
+                LyricLine(74000, "Seeking the warm cosmic shore")
+            )
+        ),
+        Song(
+            id = "4",
+            title = "Stardust Symphony",
+            artist = "Aetherium",
+            album = "Nebula Dream",
+            durationSeconds = 195,
+            dominantColor = Color(0xFF7F00FF),
+            vibrantColor = Color(0xFFE100FF),
+            chords = doubleArrayOf(349.23, 392.00, 523.25, 587.33), // Fmaj7 (F4, G4, C5, D5 Hybrid)
+            lyrics = listOf(
+                LyricLine(0, "• Shimmering Dust Opening •"),
+                LyricLine(4000, "Nebula dust swirling around..."),
+                LyricLine(10000, "In a symphony of purple and pink"),
+                LyricLine(16000, "We dance without gravity"),
+                LyricLine(22000, "A vibrant neon dreams field"),
+                LyricLine(29000, "A place made of digital dust"),
+                LyricLine(36000, "• Radiant Filter Sweep •"),
+                LyricLine(46000, "Close your eyes, breathe in"),
+                LyricLine(54000, "Let the stars compose this night"),
+                LyricLine(62000, "A liquid sky in constant motion")
+            )
+        )
+    )
 
-    val recentlyPlayed: StateFlow<List<SongEntity>> = repository.recentlyPlayed
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+    val songsList: List<Song> = presetSongs
 
-    val mostPlayed: StateFlow<List<SongEntity>> = repository.mostPlayed
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+    private val _currentSong = MutableStateFlow(presetSongs[0])
+    val currentSong: StateFlow<Song> = _currentSong.asStateFlow()
 
-    val topArtists: StateFlow<List<ArtistStats>> = allSongs
-        .map { songs ->
-            songs.groupBy { it.artist }
-                .map { (artistName, artistSongs) ->
-                    val totalPlayCount = artistSongs.sumOf { it.playCount }
-                    ArtistStats(
-                        name = artistName,
-                        playCount = totalPlayCount,
-                        songCount = artistSongs.size,
-                        color = PaletteHelper.getDeterministicColor(artistName, "artist")
-                    )
-                }
-                .sortedWith(compareByDescending<ArtistStats> { it.playCount }.thenByDescending { it.songCount })
-                .take(6)
-        }
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+    private val _isPlaying = MutableStateFlow(false)
+    val isPlaying: StateFlow<Boolean> = _isPlaying.asStateFlow()
 
-    // Player state exposed from manager
-    val currentSong: StateFlow<SongEntity?> = playerManager.currentSong
-    val playbackState: StateFlow<PlaybackState> = playerManager.playbackState
-    val currentPosition: StateFlow<Long> = playerManager.currentPosition
-    val repeatMode: StateFlow<RepeatMode> = playerManager.repeatMode
-    val isShuffleEnabled: StateFlow<Boolean> = playerManager.isShuffleEnabled
+    private val _currentTimeSec = MutableStateFlow(0)
+    val currentTimeSec: StateFlow<Int> = _currentTimeSec.asStateFlow()
 
-    // Dynamic palette colors for active player tinting!
-    private val _trackDominantColor = MutableStateFlow<Color>(Color(0xFFBD83FF)) // Default Purple Accent
+    private val _volume = MutableStateFlow(0.6f) // Soothing default volume (60%)
+    val volume: StateFlow<Float> = _volume.asStateFlow()
+
+    private val _trackDominantColor = MutableStateFlow(presetSongs[0].dominantColor)
     val trackDominantColor: StateFlow<Color> = _trackDominantColor.asStateFlow()
 
-    private val _trackVibrantColor = MutableStateFlow<Color>(Color(0xFF00ADB5)) // Default Cyan/Teal
+    private val _trackVibrantColor = MutableStateFlow(presetSongs[0].vibrantColor)
     val trackVibrantColor: StateFlow<Color> = _trackVibrantColor.asStateFlow()
 
-    private val _trackAmbientCover = MutableStateFlow<Bitmap?>(null)
-    val trackAmbientCover: StateFlow<Bitmap?> = _trackAmbientCover.asStateFlow()
-
-    // Parsing lyrics state
-    private val _parsedLyrics = MutableStateFlow<List<LyricLine>>(emptyList())
-    val parsedLyrics: StateFlow<List<LyricLine>> = _parsedLyrics.asStateFlow()
-
-    // Active lyric line calculation
-    val currentLyricIndex: StateFlow<Int> = combine(currentPosition, _parsedLyrics) { position, lyrics ->
-        var activeIndex = -1
-        for (i in lyrics.indices) {
-            if (position >= lyrics[i].timestampMs) {
-                activeIndex = i
-            } else {
-                break
-            }
-        }
-        activeIndex
-    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), -1)
-
-    // UI and scanning state
-    private val _isScanning = MutableStateFlow(false)
-    val isScanning: StateFlow<Boolean> = _isScanning.asStateFlow()
-
-    private val _scanResultMessage = MutableStateFlow<String?>(null)
-    val scanResultMessage: StateFlow<String?> = _scanResultMessage.asStateFlow()
+    private var synthJob: Job? = null
+    private var progressJob: Job? = null
 
     init {
-        // Wire up playlist completion increments
-        playerManager.onTrackFinishedListener = {
-            // Handled via smart listening threshold tracker
+        // Automatically start synthesized playback loop if playing is enabled
+        observePlaybackState()
+    }
+
+    fun selectSong(song: Song) {
+        _currentSong.value = song
+        _trackDominantColor.value = song.dominantColor
+        _trackVibrantColor.value = song.vibrantColor
+        _currentTimeSec.value = 0
+        if (_isPlaying.value) {
+            restartSynthesizer()
         }
+    }
 
-        // Set up initial lyrics parsing hook & dynamic background palette analyzer
+    fun togglePlayback() {
+        _isPlaying.value = !_isPlaying.value
+    }
+
+    fun seekTo(seconds: Int) {
+        _currentTimeSec.value = seconds.coerceIn(0, _currentSong.value.durationSeconds)
+    }
+
+    fun updateVolume(newVolume: Float) {
+        _volume.value = newVolume.coerceIn(0f, 1f)
+    }
+
+    fun nextSong() {
+        val currentIndex = presetSongs.indexOf(_currentSong.value)
+        val nextIndex = (currentIndex + 1) % presetSongs.size
+        selectSong(presetSongs[nextIndex])
+    }
+
+    fun previousSong() {
+        val currentIndex = presetSongs.indexOf(_currentSong.value)
+        val prevIndex = if (currentIndex - 1 < 0) presetSongs.size - 1 else currentIndex - 1
+        selectSong(presetSongs[prevIndex])
+    }
+
+    private fun observePlaybackState() {
         viewModelScope.launch {
-            currentSong.collect { song ->
-                if (song != null) {
-                    // Update lyrics
-                    if (song.hasLyrics) {
-                        val lyricContent = song.lyricsText
-                        val parsed = MusicUtil.parseLrc(lyricContent)
-                        _parsedLyrics.value = parsed
-                        Log.d(TAG, "Parsed lyrics for ${song.title}: count=${parsed.size}")
-                    } else {
-                        _parsedLyrics.value = emptyList()
-                    }
-
-                    // Parallel non-blocking extraction of palette & heavy blur background bitmap
-                    launch(Dispatchers.Default) {
-                        try {
-                            val realEmbeddedArt = PaletteHelper.extractEmbeddedArt(song.filePath)
-                            if (realEmbeddedArt != null) {
-                                val (domColor, vibColor) = PaletteHelper.extractPalette(realEmbeddedArt)
-                                _trackDominantColor.value = domColor
-                                _trackVibrantColor.value = vibColor
-                                
-                                // Downscale for real-time background blur rendering
-                                val scaledArt = Bitmap.createScaledBitmap(realEmbeddedArt, 64, 64, true)
-                                _trackAmbientCover.value = scaledArt
-                            } else {
-                                // Fallback to gorgeous procedural abstract artwork
-                                val proceduralArt = PaletteHelper.generateProceduralArt(song.title, song.artist)
-                                val (domColor, vibColor) = PaletteHelper.extractPalette(proceduralArt)
-                                _trackDominantColor.value = domColor
-                                _trackVibrantColor.value = vibColor
-                                
-                                _trackAmbientCover.value = proceduralArt
-                            }
-                        } catch (e: Exception) {
-                            Log.e(TAG, "Error processing song palette assets: ${e.message}")
-                            _trackDominantColor.value = Color(0xFFBD83FF)
-                            _trackVibrantColor.value = Color(0xFF00ADB5)
-                            _trackAmbientCover.value = null
-                        }
-                    }
+            _isPlaying.collect { playing ->
+                if (playing) {
+                    startSynthesizer()
+                    startProgressTracker()
                 } else {
-                    _parsedLyrics.value = emptyList()
-                    _trackDominantColor.value = Color(0xFFBD83FF)
-                    _trackVibrantColor.value = Color(0xFF00ADB5)
-                    _trackAmbientCover.value = null
+                    stopSynthesizer()
+                    stopProgressTracker()
                 }
             }
         }
+    }
 
-        // Smart Listening Threshold Tracker Logic
-        var lastCountedFilePath: String? = null
-        var hasCountedCurrentPlay = false
-
-        viewModelScope.launch {
-            currentSong.collect { song ->
-                if (song != null) {
-                    if (song.filePath != lastCountedFilePath) {
-                        hasCountedCurrentPlay = false
-                        lastCountedFilePath = song.filePath
-                    }
+    private fun startProgressTracker() {
+        progressJob?.cancel()
+        progressJob = viewModelScope.launch {
+            while (true) {
+                delay(1000)
+                val nextSec = _currentTimeSec.value + 1
+                if (nextSec >= _currentSong.value.durationSeconds) {
+                    nextSong()
                 } else {
-                    hasCountedCurrentPlay = false
-                    lastCountedFilePath = null
+                    _currentTimeSec.value = nextSec
                 }
             }
         }
+    }
 
-        viewModelScope.launch {
-            currentPosition.collect { position ->
-                val song = currentSong.value
-                val isPlaying = playbackState.value == PlaybackState.PLAYING
-                if (song != null && isPlaying && !hasCountedCurrentPlay) {
-                    val threshold = minOf(30000L, (song.durationMs * 0.20).toLong())
-                    if (position >= threshold && threshold > 0) {
-                        hasCountedCurrentPlay = true
-                        viewModelScope.launch(Dispatchers.IO) {
-                            try {
-                                repository.incrementPlayCount(song.filePath)
-                                Log.d(TAG, "Threshold met for ${song.title}: $position ms >= $threshold ms. play_count incremented on Dispatchers.IO.")
-                            } catch (e: Exception) {
-                                Log.e(TAG, "Failed incrementing play count: ${e.message}", e)
-                            }
+    private fun stopProgressTracker() {
+        progressJob?.cancel()
+        progressJob = null
+    }
+
+    private fun restartSynthesizer() {
+        stopSynthesizer()
+        startSynthesizer()
+    }
+
+    private fun startSynthesizer() {
+        synthJob?.cancel()
+        synthJob = viewModelScope.launch(Dispatchers.Default) {
+            val sampleRate = 44100
+            val minBufferSize = AudioTrack.getMinBufferSize(
+                sampleRate,
+                AudioFormat.CHANNEL_OUT_MONO,
+                AudioFormat.ENCODING_PCM_16BIT
+            )
+            
+            val audioTrack = try {
+                AudioTrack(
+                    AudioManager.STREAM_MUSIC,
+                    sampleRate,
+                    AudioFormat.CHANNEL_OUT_MONO,
+                    AudioFormat.ENCODING_PCM_16BIT,
+                    minBufferSize.coerceAtLeast(2048),
+                    AudioTrack.MODE_STREAM
+                )
+            } catch (e: Exception) {
+                null
+            }
+
+            if (audioTrack == null) return@launch
+
+            try {
+                audioTrack.play()
+            } catch (e: Exception) {
+                audioTrack.release()
+                return@launch
+            }
+
+            val bufferSize = 1024
+            val buffer = ShortArray(bufferSize)
+            val activeChords = _currentSong.value.chords
+            val phase = DoubleArray(activeChords.size)
+            
+            var smoothVolume = 0f
+
+            try {
+                while (true) {
+                    // Smoothly fade volume in/out or ramp up volume to prevent audio clicking on play/pause
+                    val targetVol = _volume.value
+                    if (smoothVolume < targetVol) {
+                        smoothVolume = (smoothVolume + 0.05f).coerceAtMost(targetVol)
+                    } else if (smoothVolume > targetVol) {
+                        smoothVolume = (smoothVolume - 0.05f).coerceAtLeast(targetVol)
+                    }
+
+                    for (i in 0 until bufferSize) {
+                        var sample = 0.0
+                        
+                        // Ultra-smooth low frequency ambient synthesizer algorithm with detuned chords
+                        for (idx in activeChords.indices) {
+                            val detunedFreq = activeChords[idx] + if (idx % 2 == 0) 0.15 else -0.15
+                            phase[idx] += 2.0 * Math.PI * detunedFreq / sampleRate
+                            if (phase[idx] > 2.0 * Math.PI) phase[idx] -= 2.0 * Math.PI
+                            
+                            // Combine pure sine waves
+                            sample += sin(phase[idx])
                         }
+                        
+                        // Add sub-bass fundamental to enrich the ambient chord cushion
+                        var bassPhase = phase[0] * 0.5
+                        if (bassPhase > 2.0 * Math.PI) bassPhase -= 2.0 * Math.PI
+                        sample += 0.8 * sin(bassPhase)
+
+                        // Normalize and filter high frequencies for a warm low-pass filtered feeling
+                        val scaledSample = (sample / (activeChords.size + 1.0) * 32767.0 * 0.18 * smoothVolume)
+                        buffer[i] = scaledSample.toInt().toShort()
                     }
+                    audioTrack.write(buffer, 0, bufferSize)
+                    delay(1)
+                }
+            } catch (e: Exception) {
+                // Handle cancellation safely
+            } finally {
+                try {
+                    audioTrack.stop()
+                    audioTrack.release()
+                } catch (e: Exception) {
+                    // Ignore release errors
                 }
             }
         }
+    }
 
-        // Scan storage on startup to fetch real local device files
-        viewModelScope.launch {
-            try {
-                repository.performSyncAndCleanup()
-                val count = repository.scanLocalMusic()
-                Log.d(TAG, "Startup scan complete. Found $count local music files.")
-            } catch (e: Exception) {
-                Log.e(TAG, "Startup sync/scan failed: ${e.message}", e)
+    private fun stopSynthesizer() {
+        synthJob?.cancel()
+        synthJob = null
+    }
+
+    // Helper to retrieve active lyric line based on current track playback progress
+    fun getActiveLyricIndex(currentTimeMs: Long): Int {
+        val lyricsList = _currentSong.value.lyrics
+        for (i in lyricsList.indices.reversed()) {
+            if (currentTimeMs >= lyricsList[i].timeMs) {
+                return i
             }
         }
-    }
-
-    fun playSong(song: SongEntity, currentList: List<SongEntity>) {
-        viewModelScope.launch {
-            playerManager.setPlaylist(currentList, song)
-            playerManager.play(song)
-        }
-    }
-
-    fun togglePlayPause() {
-        playerManager.togglePlayPause()
-    }
-
-    fun next() {
-        playerManager.next()
-    }
-
-    fun previous() {
-        playerManager.previous()
-    }
-
-    fun seekTo(positionMs: Long) {
-        playerManager.seekTo(positionMs)
-    }
-
-    fun toggleFavorite(song: SongEntity) {
-        viewModelScope.launch(Dispatchers.IO) {
-            try {
-                val updatedFavoriteState = !song.isFavorite
-                repository.toggleFavorite(song.filePath, updatedFavoriteState)
-                // If the song is the one currently playing, update its local entity to refresh UI
-                if (currentSong.value?.filePath == song.filePath) {
-                    val current = currentSong.value
-                    if (current != null) {
-                        playerManager.play(current.copy(isFavorite = updatedFavoriteState))
-                    }
-                }
-            } catch (e: Exception) {
-                Log.e(TAG, "Failed toggling favorite: ${e.message}", e)
-            }
-        }
-    }
-
-    fun toggleRepeatMode() {
-        playerManager.toggleRepeatMode()
-    }
-
-    fun toggleShuffle() {
-        playerManager.toggleShuffle()
-    }
-
-    fun scanFiles() {
-        viewModelScope.launch {
-            _isScanning.value = true
-            _scanResultMessage.value = "جاري مسح الذاكرة بحثاً عن ملفات الموسيقى..."
-            try {
-                val scanned = repository.scanLocalMusic()
-                _scanResultMessage.value = "تم المسح بنجاح! تم العثور على $scanned ملف جديد."
-            } catch (e: Exception) {
-                _scanResultMessage.value = "فشل المسح: ${e.message}"
-            } finally {
-                _isScanning.value = false
-            }
-        }
-    }
-
-    fun seedDemoTracks() {
-        viewModelScope.launch {
-            _isScanning.value = true
-            _scanResultMessage.value = "جاري توليد المسارات التجريبية وتأثيرات الضباب..."
-            try {
-                val count = repository.loadDemoMusic()
-                repository.scanLocalMusic()
-                _scanResultMessage.value = "تم توليد وتزامن $count مسارات موسيقية عربية كاملة!"
-            } catch (e: Exception) {
-                _scanResultMessage.value = "فشلت العملية: ${e.message}"
-            } finally {
-                _isScanning.value = false
-            }
-        }
-    }
-
-    fun dismissScanMessage() {
-        _scanResultMessage.value = null
-    }
-
-    private suspend fun withContextIO(block: suspend () -> Unit) {
-        kotlinx.coroutines.withContext(Dispatchers.IO) { block() }
+        return 0
     }
 
     override fun onCleared() {
+        stopSynthesizer()
+        stopProgressTracker()
         super.onCleared()
-        playerManager.release()
     }
 }
-
-data class ArtistStats(
-    val name: String,
-    val playCount: Int,
-    val songCount: Int,
-    val color: Color
-)

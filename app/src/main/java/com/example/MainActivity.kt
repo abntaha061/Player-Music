@@ -1,409 +1,743 @@
 package com.example
 
-import android.app.Activity
-import android.graphics.Bitmap
 import android.os.Bundle
-import android.widget.Toast
 import androidx.activity.ComponentActivity
-import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
-import androidx.compose.ui.platform.LocalContext
 import androidx.activity.enableEdgeToEdge
+import androidx.activity.viewModels
 import androidx.compose.animation.*
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.rounded.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.drawBehind
-import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.asImageBitmap
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.animation.core.*
-import androidx.lifecycle.viewmodel.compose.viewModel
-import com.example.player.PlaybackState
 import com.example.ui.MusicPlayerViewModel
-import com.example.ui.components.AmbientGlassBackground
-import com.example.ui.components.glassmorphic
-import com.example.ui.screens.*
-import com.example.ui.theme.MyApplicationTheme
-import com.example.ui.theme.NeonAccent
-import com.example.ui.theme.TextMuted
-import androidx.compose.foundation.Image
-import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.draw.blur
-import androidx.compose.ui.draw.BlurredEdgeTreatment
-
-enum class NavPage {
-    HOME, LIBRARY, SEARCH, SETTINGS
-}
+import com.example.ui.Song
+import com.example.ui.LyricLine
+import com.example.ui.components.*
+import com.example.ui.theme.*
 
 class MainActivity : ComponentActivity() {
+
+    private val musicViewModel: MusicPlayerViewModel by viewModels()
+
     override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+        super.onCreate(savedInstanceState)
         setContent {
-            MyApplicationTheme {
-                val musicViewModel: MusicPlayerViewModel = viewModel()
-                // Outer Ambient Glowing Atmosphere
-                AmbientGlassBackground(viewModel = musicViewModel) {
-                    MainAppScaffold(musicViewModel = musicViewModel)
-                }
-            }
-        }
-    }
-}
+            PlayerMusicTheme {
+                val currentSong by musicViewModel.currentSong.collectAsState()
+                val isPlaying by musicViewModel.isPlaying.collectAsState()
+                val currentTimeSec by musicViewModel.currentTimeSec.collectAsState()
+                val volume by musicViewModel.volume.collectAsState()
+                val trackDominantColor by musicViewModel.trackDominantColor.collectAsState()
+                val trackVibrantColor by musicViewModel.trackVibrantColor.collectAsState()
 
-@Composable
-fun MainAppScaffold(musicViewModel: MusicPlayerViewModel = viewModel()) {
-    
-    // Page state control
-    var currentPage by remember { mutableStateOf(NavPage.HOME) }
-    var selectedArtistName by remember { mutableStateOf<String?>(null) }
-    
-    // Fullscreen Now Playing overlay panel control state
-    var isPlayerExpanded by remember { mutableStateOf(false) }
+                var isPlayerExpanded by remember { mutableStateOf(false) }
 
-    val currentSong by musicViewModel.currentSong.collectAsState()
-    val playbackState by musicViewModel.playbackState.collectAsState()
-    val activeColor by musicViewModel.trackDominantColor.collectAsState()
-    val ambientCover by musicViewModel.trackAmbientCover.collectAsState()
-
-    val context = LocalContext.current
-    var lastBackPressTime by remember { mutableStateOf(0L) }
-
-    // System Back Press Handler inside Jetpack Compose:
-    BackHandler(enabled = true) {
-        if (isPlayerExpanded) {
-            isPlayerExpanded = false
-        } else if (selectedArtistName != null) {
-            selectedArtistName = null
-        } else if (currentPage != NavPage.HOME) {
-            currentPage = NavPage.HOME
-        } else {
-            val currentTime = System.currentTimeMillis()
-            if (currentTime - lastBackPressTime < 2000) {
-                (context as? Activity)?.finish()
-            } else {
-                lastBackPressTime = currentTime
-                Toast.makeText(context, "اضغط مرة أخرى للخروج", Toast.LENGTH_SHORT).show()
-            }
-        }
-    }
-
-    Box(modifier = Modifier.fillMaxSize()) {
-        Scaffold(
-            containerColor = Color.Transparent,
-            modifier = Modifier.fillMaxSize(),
-            topBar = {}, // Let the screen content flow beautiful edge-to-edge
-            bottomBar = {
-                Column(
+                Box(
                     modifier = Modifier
-                        .fillMaxWidth()
-                        .background(Color.Transparent)
+                        .fillMaxSize()
+                        .background(SpaceBlack)
                 ) {
-                    // FLOATING COMPACT MINI AUDIO CONTROLLER
-                    // Positioned ABOVE the bottom navigation bar with a subtle safe spacing
-                    if (currentSong != null) {
-                        AnimatedVisibility(
-                            visible = !isPlayerExpanded,
-                            enter = slideInVertically(initialOffsetY = { it }) + fadeIn(),
-                            exit = slideOutVertically(targetOffsetY = { it }) + fadeOut(),
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(start = 14.dp, end = 14.dp, top = 2.dp, bottom = 0.dp)
-                        ) {
-                            MiniAudioController(
-                                title = currentSong!!.title,
-                                artist = currentSong!!.artist,
-                                isPlaying = playbackState == PlaybackState.PLAYING,
-                                activeColor = activeColor,
-                                albumArt = ambientCover,
-                                onRowClick = { isPlayerExpanded = true },
-                                onPlayPauseClick = { musicViewModel.togglePlayPause() },
-                                onNextClick = { musicViewModel.next() }
-                            )
-                        }
-                    }
-
-                    // STANDARD STABLE BOTTOM NAVIGATION BAR
-                    BottomGlassNavigationBar(
-                        activePage = currentPage,
-                        activeColor = activeColor,
-                        onPageSelected = { 
-                            currentPage = it
-                            selectedArtistName = null // Close artist details when jumping tabs
-                        }
+                    // 1. Core Aurora Fluid Background - 100% Native brush interpolation (High performance, zero GPU cost)
+                    AuroraBackground(
+                        animatedDominant = trackDominantColor,
+                        animatedVibrant = trackVibrantColor,
+                        modifier = Modifier.fillMaxSize()
                     )
-                }
-            }
-        ) { innerPadding ->
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(innerPadding)
-                    .statusBarsPadding() // Protect status bar and camera notch safety area
-            ) {
-                // Crossfade between active screen pages
-                Crossfade(targetState = currentPage, label = "ScreenTransition") { page ->
-                    when (page) {
-                        NavPage.HOME -> {
-                            if (selectedArtistName != null) {
-                                ArtistScreen(
-                                    artistName = selectedArtistName!!,
-                                    viewModel = musicViewModel,
-                                    onBack = { selectedArtistName = null }
+
+                    // 2. Safe Drawing Container
+                    Scaffold(
+                        containerColor = Color.Transparent,
+                        contentWindowInsets = WindowInsets.safeDrawing,
+                        modifier = Modifier.fillMaxSize()
+                    ) { innerPadding ->
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .padding(innerPadding)
+                        ) {
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .padding(horizontal = 16.dp)
+                            ) {
+                                // Header Title
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(vertical = 12.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Rounded.GraphicEq,
+                                        contentDescription = null,
+                                        tint = trackVibrantColor,
+                                        modifier = Modifier.size(28.dp)
+                                    )
+                                    Spacer(modifier = Modifier.width(10.dp))
+                                    Text(
+                                        text = "Aurora Player",
+                                        fontSize = 24.sp,
+                                        fontWeight = FontWeight.ExtraBold,
+                                        color = TextWhite,
+                                        letterSpacing = 1.sp
+                                    )
+                                }
+
+                                Spacer(modifier = Modifier.height(8.dp))
+
+                                // Featured Ambient Track Highlight (Glass Banner)
+                                GlassCard(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(vertical = 8.dp)
+                                ) {
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        modifier = Modifier.fillMaxWidth()
+                                    ) {
+                                        Box(
+                                            modifier = Modifier
+                                                .size(54.dp)
+                                                .clip(RoundedCornerShape(12.dp))
+                                                .background(
+                                                    Brush.linearGradient(
+                                                        listOf(trackDominantColor, trackVibrantColor)
+                                                    )
+                                                ),
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            Icon(
+                                                imageVector = Icons.Rounded.PlayCircle,
+                                                contentDescription = null,
+                                                tint = Color.White,
+                                                modifier = Modifier.size(32.dp)
+                                            )
+                                        }
+
+                                        Spacer(modifier = Modifier.width(16.dp))
+
+                                        Column(modifier = Modifier.weight(1f)) {
+                                            Text(
+                                                text = "Ambient Chords Synthesizer",
+                                                fontSize = 11.sp,
+                                                fontWeight = FontWeight.Bold,
+                                                color = trackVibrantColor
+                                            )
+                                            Text(
+                                                text = "Generating procedural chord pads in real-time, completely offline.",
+                                                fontSize = 13.sp,
+                                                color = TextGrey,
+                                                maxLines = 2,
+                                                overflow = TextOverflow.Ellipsis
+                                            )
+                                        }
+                                    }
+                                }
+
+                                Spacer(modifier = Modifier.height(16.dp))
+
+                                // Song Headers Label
+                                Text(
+                                    text = "AVAILABLE FREQUENCY CHANNELS",
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = TextGrey,
+                                    letterSpacing = 1.sp,
+                                    modifier = Modifier.padding(start = 4.dp, bottom = 8.dp)
                                 )
-                            } else {
-                                HomeScreen(
-                                    viewModel = musicViewModel,
-                                    onNavigateToLibrary = { currentPage = NavPage.LIBRARY },
-                                    onArtistClick = { selectedArtistName = it }
+
+                                // Track List
+                                LazyColumn(
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .fillMaxWidth(),
+                                    verticalArrangement = Arrangement.spacedBy(10.dp),
+                                    contentPadding = PaddingValues(bottom = 100.dp)
+                                ) {
+                                    items(musicViewModel.songsList) { song ->
+                                        val isCurrent = song.id == currentSong.id
+                                        GlassCard(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .testTag("song_item_${song.id}"),
+                                            onClick = {
+                                                musicViewModel.selectSong(song)
+                                                isPlayerExpanded = true
+                                            },
+                                            focused = isCurrent
+                                        ) {
+                                            Row(
+                                                verticalAlignment = Alignment.CenterVertically,
+                                                modifier = Modifier.fillMaxWidth()
+                                            ) {
+                                                // Minimalist Soundwave Indicator or Play State Icon
+                                                Box(
+                                                    modifier = Modifier
+                                                        .size(46.dp)
+                                                        .clip(RoundedCornerShape(10.dp))
+                                                        .background(
+                                                            if (isCurrent) {
+                                                                Brush.linearGradient(
+                                                                    listOf(
+                                                                        song.dominantColor,
+                                                                        song.vibrantColor
+                                                                    )
+                                                                )
+                                                            } else {
+                                                                Brush.linearGradient(
+                                                                    listOf(
+                                                                        GlassWhite,
+                                                                        Color.Transparent
+                                                                    )
+                                                                )
+                                                            }
+                                                        ),
+                                                    contentAlignment = Alignment.Center
+                                                ) {
+                                                    Icon(
+                                                        imageVector = if (isCurrent && isPlaying) Icons.Rounded.GraphicEq else Icons.Rounded.PlayArrow,
+                                                        contentDescription = null,
+                                                        tint = if (isCurrent) Color.White else TextWhite.copy(
+                                                            alpha = 0.7f
+                                                        )
+                                                    )
+                                                }
+
+                                                Spacer(modifier = Modifier.width(16.dp))
+
+                                                Column(modifier = Modifier.weight(1f)) {
+                                                    Text(
+                                                        text = song.title,
+                                                        fontSize = 16.sp,
+                                                        fontWeight = FontWeight.Bold,
+                                                        color = if (isCurrent) Color.White else TextWhite,
+                                                        maxLines = 1,
+                                                        overflow = TextOverflow.Ellipsis
+                                                    )
+                                                    Text(
+                                                        text = "${song.artist} • ${song.album}",
+                                                        fontSize = 13.sp,
+                                                        color = if (isCurrent) TextWhite.copy(alpha = 0.7f) else TextGrey,
+                                                        maxLines = 1,
+                                                        overflow = TextOverflow.Ellipsis
+                                                    )
+                                                }
+
+                                                Spacer(modifier = Modifier.width(10.dp))
+
+                                                Text(
+                                                    text = formatTime(song.durationSeconds),
+                                                    fontSize = 13.sp,
+                                                    color = TextGrey
+                                                )
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+
+                            // Minimalist Floating Bottom Player Bar (Glass Panel)
+                            Box(
+                                modifier = Modifier
+                                    .align(Alignment.BottomCenter)
+                                    .fillMaxWidth()
+                                    .padding(bottom = 12.dp, start = 8.dp, end = 8.dp)
+                            ) {
+                                GlassFloatingBar(
+                                    song = currentSong,
+                                    isPlaying = isPlaying,
+                                    currentTimeSec = currentTimeSec,
+                                    onPlayPause = { musicViewModel.togglePlayback() },
+                                    onExpand = { isPlayerExpanded = true }
                                 )
                             }
                         }
-                        NavPage.LIBRARY -> LibraryScreen(viewModel = musicViewModel)
-                        NavPage.SEARCH -> SearchScreen(viewModel = musicViewModel)
-                        NavPage.SETTINGS -> SettingsScreen(viewModel = musicViewModel)
+                    }
+
+                    // 3. Immersive Full-screen Now Playing Overlay
+                    AnimatedVisibility(
+                        visible = isPlayerExpanded,
+                        enter = slideInVertically(
+                            initialOffsetY = { h: Int -> h },
+                            animationSpec = tween(450)
+                        ) + fadeIn(animationSpec = tween(450)),
+                        exit = slideOutVertically(
+                            targetOffsetY = { h: Int -> h },
+                            animationSpec = tween(400)
+                        ) + fadeOut(animationSpec = tween(400)),
+                        modifier = Modifier.fillMaxSize()
+                    ) {
+                        ExpandedPlayerScreen(
+                            song = currentSong,
+                            isPlaying = isPlaying,
+                            currentTimeSec = currentTimeSec,
+                            volume = volume,
+                            trackDominantColor = trackDominantColor,
+                            trackVibrantColor = trackVibrantColor,
+                            onCollapse = { isPlayerExpanded = false },
+                            onPrev = { musicViewModel.previousSong() },
+                            onNext = { musicViewModel.nextSong() },
+                            onPlayPause = { musicViewModel.togglePlayback() },
+                            onVolumeChange = { musicViewModel.updateVolume(it) },
+                            onSeek = { musicViewModel.seekTo(it) },
+                            lyrics = currentSong.lyrics,
+                            onLyricLineClick = { line: LyricLine -> musicViewModel.seekTo((line.timeMs / 1000).toInt()) }
+                        )
                     }
                 }
             }
         }
+    }
 
-        // FULL SCREEN GLIDING NOW PLAYING CONTROLLER WITH 100% OPAQUE BLOCKED UNDERLAY
-        AnimatedVisibility(
-            visible = isPlayerExpanded,
-            enter = slideInVertically(
-                initialOffsetY = { it },
-                animationSpec = tween(durationMillis = 400)
-            ) + fadeIn(),
-            exit = slideOutVertically(
-                targetOffsetY = { it },
-                animationSpec = tween(durationMillis = 350)
-            ) + fadeOut()
+    private fun formatTime(seconds: Int): String {
+        val m = seconds / 60
+        val s = seconds % 60
+        return String.format("%02d:%02d", m, s)
+    }
+}
+
+@Composable
+fun GlassFloatingBar(
+    song: Song,
+    isPlaying: Boolean,
+    currentTimeSec: Int,
+    onPlayPause: () -> Unit,
+    onExpand: () -> Unit
+) {
+    val progress = currentTimeSec.toFloat() / song.durationSeconds.toFloat()
+    val barColor = song.vibrantColor
+
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(68.dp)
+            .clip(RoundedCornerShape(20.dp))
+            .background(Color(0xFF0D0D14).copy(alpha = 0.85f))
+            .border(
+                1.dp,
+                Brush.verticalGradient(
+                    listOf(Color.White.copy(alpha = 0.12f), Color.White.copy(alpha = 0.02f))
+                ),
+                RoundedCornerShape(20.dp)
+            )
+            .clickable(onClick = onExpand)
+            .padding(horizontal = 16.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        // Linear bottom progress bar indicator
+        Box(
+            modifier = Modifier
+                .align(Alignment.BottomStart)
+                .fillMaxWidth(progress.coerceIn(0f, 1f))
+                .height(2.dp)
+                .background(barColor)
+        )
+
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.fillMaxWidth()
         ) {
-            Box(
+            // Rotating disk mini version
+            CrispAlbumArt(
+                song = song,
+                isPlaying = isPlaying,
                 modifier = Modifier
-                    .fillMaxSize()
-                    .background(Color(0xFF040408)) // 100% Opaque Solid base to block home screen contents
+                    .size(42.dp)
+                    .testTag("mini_album_art")
+            )
+
+            Spacer(modifier = Modifier.width(14.dp))
+
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = song.title,
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = TextWhite,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                Text(
+                    text = song.artist,
+                    fontSize = 12.sp,
+                    color = TextGrey,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
+
+            // Simple Playback Toggle
+            IconButton(
+                onClick = onPlayPause,
+                modifier = Modifier
+                    .size(36.dp)
+                    .testTag("mini_play_button")
             ) {
-                NowPlayingScreen(
-                    viewModel = musicViewModel,
-                    onCollapse = { isPlayerExpanded = false }
+                Icon(
+                    imageVector = if (isPlaying) Icons.Rounded.PauseCircleFilled else Icons.Rounded.PlayCircleFilled,
+                    contentDescription = "play_toggle",
+                    tint = TextWhite,
+                    modifier = Modifier.size(34.dp)
                 )
             }
         }
     }
 }
 
-/**
- * Bottom glass styled tab bar for standard navigation tabs
- */
 @Composable
-fun BottomGlassNavigationBar(
-    activePage: NavPage,
-    activeColor: Color,
-    onPageSelected: (NavPage) -> Unit
-) {
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .navigationBarsPadding() // Automatically offsets above device gesture handle / 3-button system bars
-            .padding(start = 16.dp, end = 16.dp, top = 0.dp, bottom = 10.dp)
-            .height(56.dp)
-            .glassmorphic(cornerRadius = 14.dp, alpha = 0.12f, borderColorAlpha = 0.22f),
-        contentAlignment = Alignment.Center
-    ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceEvenly,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            NavigationTabItem(
-                label = "الرئيسية",
-                englishLabel = "Home",
-                icon = Icons.Filled.Home,
-                isActive = activePage == NavPage.HOME,
-                activeColor = activeColor,
-                modifier = Modifier.testTag("nav_tab_home")
-            ) { onPageSelected(NavPage.HOME) }
-
-            NavigationTabItem(
-                label = "المكتبة",
-                englishLabel = "Library",
-                icon = Icons.Filled.LibraryMusic,
-                isActive = activePage == NavPage.LIBRARY,
-                activeColor = activeColor,
-                modifier = Modifier.testTag("nav_tab_library")
-            ) { onPageSelected(NavPage.LIBRARY) }
-
-            NavigationTabItem(
-                label = "البحث",
-                englishLabel = "Search",
-                icon = Icons.Filled.Search,
-                isActive = activePage == NavPage.SEARCH,
-                activeColor = activeColor,
-                modifier = Modifier.testTag("nav_tab_search")
-            ) { onPageSelected(NavPage.SEARCH) }
-
-            NavigationTabItem(
-                label = "الضبط",
-                englishLabel = "Settings",
-                icon = Icons.Filled.Settings,
-                isActive = activePage == NavPage.SETTINGS,
-                activeColor = activeColor,
-                modifier = Modifier.testTag("nav_tab_settings")
-            ) { onPageSelected(NavPage.SETTINGS) }
-        }
-    }
-}
-
-@Composable
-fun RowScope.NavigationTabItem(
-    label: String,
-    englishLabel: String,
-    icon: ImageVector,
-    isActive: Boolean,
-    activeColor: Color,
-    modifier: Modifier = Modifier,
-    onClick: () -> Unit
-) {
-    val inactiveColor = Color.White.copy(alpha = 0.55f)
-
-    Column(
-        modifier = modifier
-            .weight(1f)
-            .clickable(onClick = onClick)
-            .fillMaxHeight(),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center
-    ) {
-        Icon(
-            imageVector = icon,
-            contentDescription = label,
-            tint = if (isActive) activeColor else inactiveColor,
-            modifier = Modifier.size(20.dp)
-        )
-        Text(
-            text = label,
-            color = if (isActive) activeColor else inactiveColor,
-            fontSize = 9.sp,
-            fontWeight = if (isActive) FontWeight.Bold else FontWeight.Normal,
-            modifier = Modifier.padding(top = 1.dp)
-        )
-    }
-}
-
-/**
- * Floating bar appearing at base of browser view mimicking an offline Mini Player
- */
-@Composable
-fun MiniAudioController(
-    title: String,
-    artist: String,
+fun ExpandedPlayerScreen(
+    song: Song,
     isPlaying: Boolean,
-    activeColor: Color,
-    albumArt: Bitmap?,
-    onRowClick: () -> Unit,
-    onPlayPauseClick: () -> Unit,
-    onNextClick: () -> Unit
+    currentTimeSec: Int,
+    volume: Float,
+    trackDominantColor: Color,
+    trackVibrantColor: Color,
+    onCollapse: () -> Unit,
+    onPrev: () -> Unit,
+    onNext: () -> Unit,
+    onPlayPause: () -> Unit,
+    onVolumeChange: (Float) -> Unit,
+    onSeek: (Int) -> Unit,
+    lyrics: List<LyricLine>,
+    onLyricLineClick: (LyricLine) -> Unit
 ) {
     Box(
         modifier = Modifier
-            .fillMaxWidth()
-            .height(64.dp)
-            .glassmorphic(cornerRadius = 14.dp, alpha = 0.2f, borderColorAlpha = 0.3f)
-            .background(Color.Black.copy(alpha = 0.45f))
-            .clickable(onClick = onRowClick)
-            .padding(horizontal = 12.dp),
-        contentAlignment = Alignment.CenterStart
+            .fillMaxSize()
+            .background(SpaceBlack)
     ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            // Rotating disk album icon lookalike
-            Box(
+        // Redraw Aurora in expanded state for beautiful immersive transition
+        AuroraBackground(
+            animatedDominant = trackDominantColor,
+            animatedVibrant = trackVibrantColor,
+            modifier = Modifier.fillMaxSize()
+        )
+
+        // Column for layout
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .windowInsetsPadding(WindowInsets.statusBars)
+                .navigationBarsPadding()
+                .padding(horizontal = 24.dp)
+        ) {
+            // Header Controls
+            Row(
                 modifier = Modifier
-                    .size(48.dp)
-                    .clip(RoundedCornerShape(8.dp))
-                    .background(Color.White.copy(alpha = 0.08f)),
-                contentAlignment = Alignment.Center
+                    .fillMaxWidth()
+                    .padding(vertical = 12.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                if (albumArt != null) {
-                    Image(
-                        bitmap = albumArt.asImageBitmap(),
-                        contentDescription = "Mini Player Album Art",
-                        contentScale = ContentScale.Crop,
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .clip(RoundedCornerShape(8.dp))
-                    )
-                } else {
+                IconButton(
+                    onClick = onCollapse,
+                    modifier = Modifier
+                        .clip(CircleShape)
+                        .background(GlassWhite)
+                        .testTag("player_collapse_button")
+                ) {
                     Icon(
-                        imageVector = Icons.Filled.MusicNote,
-                        contentDescription = null,
-                        tint = activeColor,
-                        modifier = Modifier.size(24.dp)
+                        imageVector = Icons.Rounded.KeyboardArrowDown,
+                        contentDescription = "collapse",
+                        tint = TextWhite
+                    )
+                }
+
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text(
+                        text = "NOW PLAYING",
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = TextGrey,
+                        letterSpacing = 1.5.sp
+                    )
+                    Text(
+                        text = song.album,
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.SemiBold,
+                        color = TextWhite,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.widthIn(max = 200.dp)
+                    )
+                }
+
+                IconButton(
+                    onClick = { /* Menu item placeholder or harmless click feedback */ },
+                    modifier = Modifier
+                        .clip(CircleShape)
+                        .background(GlassWhite)
+                ) {
+                    Icon(
+                        imageVector = Icons.Rounded.MoreHoriz,
+                        contentDescription = "more",
+                        tint = TextWhite
                     )
                 }
             }
 
-            Spacer(modifier = Modifier.width(12.dp))
+            // Beautiful Tab/Layout split for Disk vs Lyrics
+            var selectedTab by remember { mutableIntStateOf(0) } // 0 = Player, 1 = Lyrics
 
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = title,
-                    color = Color.White,
-                    fontSize = 13.sp,
-                    fontWeight = FontWeight.Bold,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-                Text(
-                    text = artist,
-                    color = TextMuted,
-                    fontSize = 11.sp,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxWidth(),
+                contentAlignment = Alignment.Center
+            ) {
+                if (selectedTab == 0) {
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.Center,
+                        modifier = Modifier.fillMaxSize()
+                    ) {
+                        Spacer(modifier = Modifier.height(10.dp))
+
+                        // Large spinning CD disk with spring resizing on Play/Pause
+                        CrispAlbumArt(
+                            song = song,
+                            isPlaying = isPlaying,
+                            modifier = Modifier
+                                .fillMaxWidth(0.72f)
+                                .testTag("expanded_album_art")
+                        )
+
+                        Spacer(modifier = Modifier.height(30.dp))
+
+                        Text(
+                            text = song.title,
+                            fontSize = 24.sp,
+                            fontWeight = FontWeight.Black,
+                            color = TextWhite,
+                            textAlign = TextAlign.Center,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+
+                        Spacer(modifier = Modifier.height(6.dp))
+
+                        Text(
+                            text = song.artist,
+                            fontSize = 16.sp,
+                            color = trackVibrantColor,
+                            fontWeight = FontWeight.Bold,
+                            textAlign = TextAlign.Center,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+
+                        Spacer(modifier = Modifier.height(20.dp))
+                    }
+                } else {
+                    // Synced Lyrics View
+                    SyncedLyricsView(
+                        lyrics = lyrics,
+                        currentTimeMs = currentTimeSec.toLong() * 1000L,
+                        onLineClick = onLyricLineClick,
+                        modifier = Modifier.fillMaxSize()
+                    )
+                }
             }
 
-            // Play Pause control button inside Mini Player
-            IconButton(
-                onClick = onPlayPauseClick,
-                modifier = Modifier.testTag("mini_player_play_pause")
+            // Visual view selector toggle: Player controls / Lyrics
+            Row(
+                modifier = Modifier
+                    .align(Alignment.CenterHorizontally)
+                    .clip(CircleShape)
+                    .background(GlassWhite)
+                    .padding(4.dp),
+                horizontalArrangement = Arrangement.spacedBy(4.dp)
             ) {
-                Icon(
-                    imageVector = if (isPlaying) Icons.Filled.Pause else Icons.Filled.PlayArrow,
-                    contentDescription = "Mini Play Pause",
-                    tint = Color.White
-                )
+                Box(
+                    modifier = Modifier
+                        .clip(CircleShape)
+                        .background(if (selectedTab == 0) TextWhite.copy(alpha = 0.2f) else Color.Transparent)
+                        .clickable { selectedTab = 0 }
+                        .padding(horizontal = 16.dp, vertical = 6.dp)
+                ) {
+                    Text("Player", color = TextWhite, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                }
+                Box(
+                    modifier = Modifier
+                        .clip(CircleShape)
+                        .background(if (selectedTab == 1) TextWhite.copy(alpha = 0.2f) else Color.Transparent)
+                        .clickable { selectedTab = 1 }
+                        .padding(horizontal = 16.dp, vertical = 6.dp)
+                ) {
+                    Text("Lyrics", color = TextWhite, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                }
             }
 
-            // Skip track next button inside Mini Player
-            IconButton(
-                onClick = onNextClick,
-                modifier = Modifier.testTag("mini_player_next")
+            Spacer(modifier = Modifier.height(20.dp))
+
+            // Progress seekbar
+            val progress = currentTimeSec.toFloat() / song.durationSeconds.toFloat()
+            Column(modifier = Modifier.fillMaxWidth()) {
+                Slider(
+                    value = progress.coerceIn(0f, 1f),
+                    onValueChange = { onSeek((it * song.durationSeconds).toInt()) },
+                    colors = SliderDefaults.colors(
+                        activeTrackColor = trackVibrantColor,
+                        inactiveTrackColor = Color.White.copy(alpha = 0.15f),
+                        thumbColor = TextWhite
+                    ),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .testTag("player_progress_slider")
+                )
+
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 4.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Text(
+                        text = formatTime(currentTimeSec),
+                        fontSize = 12.sp,
+                        color = TextGrey
+                    )
+                    Text(
+                        text = formatTime(song.durationSeconds),
+                        fontSize = 12.sp,
+                        color = TextGrey
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // Playback buttons Panel
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 12.dp),
+                horizontalArrangement = Arrangement.SpaceEvenly,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                // Prev button
+                IconButton(
+                    onClick = onPrev,
+                    modifier = Modifier
+                        .size(52.dp)
+                        .clip(CircleShape)
+                        .background(GlassWhite)
+                        .testTag("prev_button")
+                ) {
+                    Icon(
+                        imageVector = Icons.Rounded.SkipPrevious,
+                        contentDescription = "prev",
+                        tint = TextWhite,
+                        modifier = Modifier.size(28.dp)
+                    )
+                }
+
+                // Play toggle floating pill
+                Box(
+                    modifier = Modifier
+                        .size(76.dp)
+                        .clip(CircleShape)
+                        .background(
+                            Brush.linearGradient(
+                                listOf(trackDominantColor, trackVibrantColor)
+                            )
+                        )
+                        .clickable(onClick = onPlayPause)
+                        .testTag("play_button"),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = if (isPlaying) Icons.Rounded.Pause else Icons.Rounded.PlayArrow,
+                        contentDescription = "play_pause",
+                        tint = Color.White,
+                        modifier = Modifier.size(38.dp)
+                    )
+                }
+
+                // Next button
+                IconButton(
+                    onClick = onNext,
+                    modifier = Modifier
+                        .size(52.dp)
+                        .clip(CircleShape)
+                        .background(GlassWhite)
+                        .testTag("next_button")
+                ) {
+                    Icon(
+                        imageVector = Icons.Rounded.SkipNext,
+                        contentDescription = "next",
+                        tint = TextWhite,
+                        modifier = Modifier.size(28.dp)
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            // Volume Controller
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 24.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.Center
             ) {
                 Icon(
-                    imageVector = Icons.Filled.SkipNext,
-                    contentDescription = "Mini Skip Next",
-                    tint = Color.White
+                    imageVector = Icons.Rounded.VolumeDown,
+                    contentDescription = null,
+                    tint = TextGrey,
+                    modifier = Modifier.size(20.dp)
+                )
+
+                Slider(
+                    value = volume,
+                    onValueChange = onVolumeChange,
+                    colors = SliderDefaults.colors(
+                        activeTrackColor = TextWhite.copy(alpha = 0.5f),
+                        inactiveTrackColor = Color.White.copy(alpha = 0.1f),
+                        thumbColor = TextWhite
+                    ),
+                    modifier = Modifier
+                        .weight(1f)
+                        .padding(horizontal = 12.dp)
+                        .testTag("player_volume_slider")
+                )
+
+                Icon(
+                    imageVector = Icons.Rounded.VolumeUp,
+                    contentDescription = null,
+                    tint = TextGrey,
+                    modifier = Modifier.size(20.dp)
                 )
             }
         }
     }
+}
+
+private fun formatTime(seconds: Int): String {
+    val m = seconds / 60
+    val s = seconds % 60
+    return String.format("%02d:%02d", m, s)
 }
