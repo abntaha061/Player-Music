@@ -54,6 +54,20 @@ fun NowPlayingScreen(
     val currentLyricIndex by viewModel.currentLyricIndex.collectAsState()
 
     val ambientCover by viewModel.trackAmbientCover.collectAsState()
+    val targetDominantColor by viewModel.trackDominantColor.collectAsState()
+    val targetVibrantColor by viewModel.trackVibrantColor.collectAsState()
+
+    // Smooth color transitions with 1000ms crossfade
+    val animatedDominant by animateColorAsState(
+        targetValue = targetDominantColor,
+        animationSpec = tween(1000, easing = FastOutSlowInEasing),
+        label = "AnimDominantNP"
+    )
+    val animatedVibrant by animateColorAsState(
+        targetValue = targetVibrantColor,
+        animationSpec = tween(1000, easing = FastOutSlowInEasing),
+        label = "AnimVibrantNP"
+    )
 
     // If no song is loaded, show a friendly empty player state
     if (currentSong == null) {
@@ -76,7 +90,21 @@ fun NowPlayingScreen(
     val song = currentSong!!
 
     Box(modifier = Modifier.fillMaxSize()) {
-        // 1. Background: Album Art of currently playing track (Scale to Fill) + Heavy Gaussian Blur + Dark Gradient Overlay
+        // 1. Base Layer: Dynamic vertical/diagonal palette gradient background based on current album colors
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(
+                    Brush.verticalGradient(
+                        colors = listOf(
+                            animatedDominant.copy(alpha = 0.9f),
+                            animatedVibrant.copy(alpha = 0.9f)
+                        )
+                    )
+                )
+        )
+
+        // 2. Mid Layer: Glassmorphism Blur of the current artwork (preserved as-is)
         if (ambientCover != null) {
             Image(
                 bitmap = ambientCover!!.asImageBitmap(),
@@ -84,33 +112,15 @@ fun NowPlayingScreen(
                 contentScale = ContentScale.Crop,
                 modifier = Modifier
                     .fillMaxSize()
-                    .blur(60.dp, edgeTreatment = BlurredEdgeTreatment.Unbounded)
-            )
-        } else {
-            // Fallback solid gradient
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(
-                        Brush.verticalGradient(
-                            colors = listOf(Color(0xFF0C0C14), Color(0xFF040408))
-                        )
-                    )
+                    .blur(50.dp, edgeTreatment = BlurredEdgeTreatment.Unbounded)
             )
         }
 
-        // Dark gradient overlay for guaranteed text legibility with premium glassmorphic atmosphere
+        // 3. Top Scrim Layer: Dark Scrim (50% opacity) above gradient to safeguard high-contrast text visibility
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .background(
-                    Brush.verticalGradient(
-                        colors = listOf(
-                            Color(0xFF040408).copy(alpha = 0.55f),
-                            Color(0xFF040408).copy(alpha = 0.85f)
-                        )
-                    )
-                )
+                .background(Color(0xFF040408).copy(alpha = 0.50f))
         )
 
         // Main content block

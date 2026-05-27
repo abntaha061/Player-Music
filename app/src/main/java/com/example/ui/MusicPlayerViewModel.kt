@@ -128,16 +128,9 @@ class MusicPlayerViewModel(application: Application) : AndroidViewModel(applicat
                         try {
                             val realEmbeddedArt = PaletteHelper.extractEmbeddedArt(song.filePath)
                             if (realEmbeddedArt != null) {
-                                val domColor = PaletteHelper.extractDominantColor(realEmbeddedArt)
+                                val (domColor, vibColor) = PaletteHelper.extractPalette(realEmbeddedArt)
                                 _trackDominantColor.value = domColor
-                                
-                                // Generate a vibrant complementary hue
-                                val complimentary = Color(
-                                    red = (1f - domColor.red).coerceIn(0f, 1f),
-                                    green = (1f - domColor.green).coerceIn(0f, 1f),
-                                    blue = (1f - domColor.blue).coerceIn(0f, 1f)
-                                )
-                                _trackVibrantColor.value = complimentary
+                                _trackVibrantColor.value = vibColor
                                 
                                 // Downscale for real-time background blur rendering
                                 val scaledArt = Bitmap.createScaledBitmap(realEmbeddedArt, 64, 64, true)
@@ -145,11 +138,9 @@ class MusicPlayerViewModel(application: Application) : AndroidViewModel(applicat
                             } else {
                                 // Fallback to gorgeous procedural abstract artwork
                                 val proceduralArt = PaletteHelper.generateProceduralArt(song.title, song.artist)
-                                val domColor = PaletteHelper.extractDominantColor(proceduralArt)
+                                val (domColor, vibColor) = PaletteHelper.extractPalette(proceduralArt)
                                 _trackDominantColor.value = domColor
-                                
-                                val complimentaryColor = PaletteHelper.getDeterministicColor(song.artist, song.title)
-                                _trackVibrantColor.value = complimentaryColor
+                                _trackVibrantColor.value = vibColor
                                 
                                 _trackAmbientCover.value = proceduralArt
                             }

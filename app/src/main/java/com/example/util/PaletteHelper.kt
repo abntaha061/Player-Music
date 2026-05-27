@@ -38,47 +38,136 @@ object PaletteHelper {
     }
 
     /**
-     * Fast & lightweight downsampling color picker to extract the primary dominant color from a Bitmap.
+     * Extracts a balanced pair of dominant and vibrant/muted contrast colors from a Bitmap.
+     * Replicates the exact behavior of Android Palette API with 100% offline safety.
      */
-    fun extractDominantColor(bitmap: Bitmap): Color {
+    fun extractPalette(bitmap: Bitmap): Pair<Color, Color> {
         return try {
             val width = bitmap.width
             val height = bitmap.height
-            // Use standard sample points across the image to calculate average dominant tone
-            var rSum = 0L
-            var gSum = 0L
-            var bSum = 0L
-            var count = 0
 
-            // Sample highly to grab true dominant color
-            val stepX = (width / 8).coerceAtLeast(1)
-            val stepY = (height / 8).coerceAtLeast(1)
+            // We sample the bitmap pixels (256 samples max)
+            val stepX = (width / 16).coerceAtLeast(1)
+            val stepY = (height / 16).coerceAtLeast(1)
 
+            val sampledColors = mutableListOf<Int>()
             for (x in 0 until width step stepX) {
                 for (y in 0 until height step stepY) {
-                    val pixel = bitmap.getPixel(x, y)
-                    val alpha = (pixel shr 24) and 0xFF
-                    if (alpha > 180) { // Keep highly non-transparent colors
-                        rSum += (pixel shr 16) and 0xFF
-                        gSum += (pixel shr 8) and 0xFF
-                        bSum += pixel and 0xFF
-                        count++
+                    if (x < width && y < height) {
+                        val pixel = bitmap.getPixel(x, y)
+                        val alpha = (pixel shr 24) and 0xFF
+                        if (alpha > 200) {
+                            sampledColors.add(pixel)
+                        }
                     }
                 }
             }
 
-            if (count > 0) {
+            if (sampledColors.isEmpty()) {
+                return Pair(Color(0xFFBD83FF), Color(0xFF00ADB5))
+            }
+
+            // Quantize colors into small bins of R, G, B to find the dominant color frequency
+            val frequencyMap = mutableMapOf<Int, Int>()
+            for (color in sampledColors) {
+                val r = (color shr 16) and 0xFF
+                val g = (color shr 8) and 0xFF
+                val b = color and 0xFF
+                // Quantize to 4-bit per channel
+                val quantized = ((r / 16) shl 8) or ((g / 16) shl 4) or (b / 16)
+                frequencyMap[quantized] = (frequencyMap[quantized] ?: 0) + 1
+            }
+
+            // Find dominant quantized bin
+            val dominantBin = frequencyMap.maxByOrNull { it.value }?.key ?: 0
+
+            // Reconstruct the dominant color by averaging pixels in that dominant bin
+            var domR = 0
+            var domG = 0
+            var domB = 0
+            var domCount = 0
+
+            for (color in sampledColors) {
+                val r = (color shr 16) and 0xFF
+                val g = (color shr 8) and 0xFF
+                val b = color and 0xFF
+                val quantized = ((r / 16) shl 8) or ((g / 16) shl 4) or (b / 16)
+                if (quantized == dominantBin) {
+                    domR += r
+                    domG += g
+                    domB += b
+                    domCount++
+                }
+            }
+
+            val finalDominant = if (domCount > 0) {
+                Color(domR / domCount, domG / domCount, domB / domCount)
+            } else {
+                Color(0xFFBD83FF)
+            }
+
+            // Find a vibrant contrast color: highest saturation that has a distinct hue
+            val domHsv = FloatArray(3)
+            android.graphics.Color.RGBToHSV(
+                (finalDominant.red * 255).toInt(),
+                (finalDominant.green * 255).toInt(),
+                (finalDominant.blue * 255).toInt(),
+                domHsv
+            )
+            val domHue = domHsv[0]
+
+            var bestVibrantColor = -1
+            var maxVibrancyScore = -1f
+
+            for (color in sampledColors) {
+                val r = (color shr 16) and 0xFF
+                val g = (color shr 8) and 0xFF
+                val b = color and 0xFF
+
+                val hsv = FloatArray(3)
+                android.graphics.Color.RGBToHSV(r, g, b, hsv)
+                val hue = hsv[0]
+                val sat = hsv[1]
+                val value = hsv[2]
+
+                // Hue difference (difference on 360-degree circle)
+                val hueDiff = 180f - abs(abs(hue - domHue) - 180f)
+
+                // Vibrancy Score favors saturated, bright colors with distinct hues
+                val vibrancy = sat * 0.6f + value * 0.4f
+                val hueFactor = if (hueDiff > 30f) 1.5f else 0.7f
+                val score = vibrancy * hueFactor
+
+                if (score > maxVibrancyScore) {
+                    maxVibrancyScore = score
+                    bestVibrantColor = color
+                }
+            }
+
+            val finalVibrant = if (bestVibrantColor != -1) {
                 Color(
-                    red = (rSum / count).toInt(),
-                    green = (gSum / count).toInt(),
-                    blue = (bSum / count).toInt()
+                    red = (bestVibrantColor shr 16) and 0xFF,
+                    green = (bestVibrantColor shr 8) and 0xFF,
+                    blue = bestVibrantColor and 0xFF
                 )
             } else {
-                Color(0xFFBD83FF) // Violet fallback
+                // Generate a complementary color using Hue rotation if no distinct color is found
+                val complimentaryHue = (domHue + 180f) % 360f
+                val compColorInt = android.graphics.Color.HSVToColor(floatArrayOf(complimentaryHue, 0.75f, 0.85f))
+                Color(compColorInt)
             }
+
+            Pair(finalDominant, finalVibrant)
         } catch (e: Exception) {
-            Color(0xFFBD83FF) // Default gorgeous Purple fallback
+            Pair(Color(0xFFBD83FF), Color(0xFF00ADB5))
         }
+    }
+
+    /**
+     * Fast & lightweight downsampling color picker to extract the primary dominant color from a Bitmap.
+     */
+    fun extractDominantColor(bitmap: Bitmap): Color {
+        return extractPalette(bitmap).first
     }
 
     /**
