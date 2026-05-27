@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.collectAsState
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.BlendMode
@@ -256,3 +257,38 @@ fun AuroraBackground(
         )
     }
 }
+
+@Composable
+fun AmbientGlassBackground(
+    viewModel: com.example.ui.MusicPlayerViewModel,
+    modifier: Modifier = Modifier,
+    content: @Composable () -> Unit
+) {
+    val trackDominantColor by viewModel.trackDominantColor.collectAsState()
+    val trackVibrantColor by viewModel.trackVibrantColor.collectAsState()
+
+    AmbientGlassBackground(
+        dominantColor = trackDominantColor,
+        vibrantColor = trackVibrantColor,
+        modifier = modifier,
+        content = content
+    )
+}
+
+@Composable
+fun AmbientGlassBackground(
+    dominantColor: Color,
+    vibrantColor: Color,
+    modifier: Modifier = Modifier,
+    content: @Composable () -> Unit
+) {
+    Box(modifier = modifier.fillMaxSize()) {
+        AuroraBackground(
+            animatedDominant = dominantColor,
+            animatedVibrant = vibrantColor,
+            modifier = Modifier.fillMaxSize()
+        )
+        content()
+    }
+}
+

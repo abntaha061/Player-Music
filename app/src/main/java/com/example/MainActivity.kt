@@ -86,18 +86,7 @@ class MainActivity : ComponentActivity() {
                     musicViewModel.deployAndScan()
                 }
 
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .background(SpaceBlack)
-                ) {
-                    // 1. Core Aurora Fluid Background - 100% Native brush interpolation (High performance, zero GPU cost)
-                    AuroraBackground(
-                        animatedDominant = trackDominantColor,
-                        animatedVibrant = trackVibrantColor,
-                        modifier = Modifier.fillMaxSize()
-                    )
-
+                com.example.ui.components.AmbientGlassBackground(viewModel = musicViewModel) {
                     // 2. Safe Drawing Container
                     Scaffold(
                         containerColor = Color.Transparent,
@@ -616,17 +605,11 @@ fun ExpandedPlayerScreen(
     lyrics: List<LyricLine>,
     onLyricLineClick: (LyricLine) -> Unit
 ) {
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(SpaceBlack)
+    com.example.ui.components.AmbientGlassBackground(
+        dominantColor = trackDominantColor,
+        vibrantColor = trackVibrantColor,
+        modifier = Modifier.fillMaxSize()
     ) {
-        // Redraw Aurora in expanded state for beautiful immersive transition
-        AuroraBackground(
-            animatedDominant = trackDominantColor,
-            animatedVibrant = trackVibrantColor,
-            modifier = Modifier.fillMaxSize()
-        )
 
         // Column for layout
         Column(

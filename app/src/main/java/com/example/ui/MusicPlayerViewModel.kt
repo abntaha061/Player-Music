@@ -66,9 +66,18 @@ class MusicPlayerViewModel(application: Application) : AndroidViewModel(applicat
             releasePlayer()
 
             _currentSong.value = song
-            _trackDominantColor.value = song.dominantColor
-            _trackVibrantColor.value = song.vibrantColor
             _currentTimeSec.value = 0
+
+            // Extract real album art and compute Dominant & Vibrant colors using PaletteHelper
+            val context = getApplication<Application>()
+            val artBitmap = LocalMusicScanner.extractEmbeddedAlbumArt(context, song.dataPath, song.id)
+            val extractedColors = com.example.util.PaletteHelper.extractColors(
+                bitmap = artBitmap,
+                defaultDominant = song.dominantColor,
+                defaultVibrant = song.vibrantColor
+            )
+            _trackDominantColor.value = extractedColors.first
+            _trackVibrantColor.value = extractedColors.second
 
             try {
                 val player = MediaPlayer().apply {
