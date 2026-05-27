@@ -86,12 +86,13 @@ class MusicPlayerViewModel(application: Application) : AndroidViewModel(applicat
             _trackVibrantColor.value = extractedColors.second
 
             try {
-                val player = withContext(Dispatchers.IO) {
-                    MediaPlayer().apply {
-                        setDataSource(song.dataPath)
-                        setVolume(_volume.value, _volume.value)
-                        prepare()
-                    }
+                // Create MediaPlayer on Main thread to bind to Main Looper (callbacks thread) safely,
+                // while scheduling setDataSource and preparation on Dispatchers.IO
+                val player = MediaPlayer()
+                withContext(Dispatchers.IO) {
+                    player.setDataSource(song.dataPath)
+                    player.setVolume(_volume.value, _volume.value)
+                    player.prepare()
                 }
 
                 player.setOnCompletionListener {

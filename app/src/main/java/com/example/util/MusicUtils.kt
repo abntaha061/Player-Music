@@ -29,7 +29,8 @@ data class Song(
     val dataPath: String,
     val isSample: Boolean = false,
     val dominantColor: Color = Color(0xFFBD83FF),
-    val vibrantColor: Color = Color(0xFF00ADB5)
+    val vibrantColor: Color = Color(0xFF00ADB5),
+    val fileSizeMB: String = "8.0 MB"
 ) {
     // Lazy extraction of LRC lyrics beside the file
     fun getLyrics(): List<LyricLine> {
@@ -128,6 +129,7 @@ object LocalMusicScanner {
                         val colors = getColorsForText(title)
 
                         if (songsList.none { it.dataPath == dataPath }) {
+                            val sizeMB = computeFileSizeMB(dataPath)
                             songsList.add(
                                 Song(
                                     id = id.toString(),
@@ -138,7 +140,8 @@ object LocalMusicScanner {
                                     dataPath = dataPath,
                                     isSample = false,
                                     dominantColor = colors.first,
-                                    vibrantColor = colors.second
+                                    vibrantColor = colors.second,
+                                    fileSizeMB = sizeMB
                                 )
                             )
                         }
@@ -190,6 +193,20 @@ object LocalMusicScanner {
         }
     }
 
+    private fun computeFileSizeMB(dataPath: String): String {
+        val file = File(dataPath)
+        return if (file.exists() && file.isFile) {
+            val bytes = file.length()
+            if (bytes > 0) {
+                String.format(java.util.Locale.US, "%.1f MB", bytes.toDouble() / (1024 * 1024))
+            } else {
+                "8.0 MB"
+            }
+        } else {
+            "8.0 MB"
+        }
+    }
+
     private fun scanDirRecursive(dir: File, songsList: MutableList<Song>) {
         val files = dir.listFiles() ?: return
         for (file in files) {
@@ -199,27 +216,29 @@ object LocalMusicScanner {
                 val ext = file.extension.lowercase()
                 if (ext == "mp3" || ext == "wav" || ext == "m4a" || ext == "ogg" || ext == "flac") {
                     val dataPath = file.absolutePath
-                    if (songsList.none { it.dataPath == dataPath }) {
-                        val meta = getSongMetadata(dataPath)
-                        val title = file.nameWithoutExtension.replace('_', ' ')
-                        val artist = meta.artist ?: "Unknown Artist"
-                        val album = meta.album ?: "Local Album"
-                        val colors = getColorsForText(title)
-                        
-                        songsList.add(
-                            Song(
-                                id = "file_${file.name.hashCode()}",
-                                title = title,
-                                artist = artist,
-                                album = album,
-                                durationSeconds = meta.durationSeconds,
-                                dataPath = dataPath,
-                                isSample = false,
-                                dominantColor = colors.first,
-                                vibrantColor = colors.second
+                        if (songsList.none { it.dataPath == dataPath }) {
+                            val meta = getSongMetadata(dataPath)
+                            val title = file.nameWithoutExtension.replace('_', ' ')
+                            val artist = meta.artist ?: "Unknown Artist"
+                            val album = meta.album ?: "Local Album"
+                            val colors = getColorsForText(title)
+                            val sizeMB = computeFileSizeMB(dataPath)
+                            
+                            songsList.add(
+                                Song(
+                                    id = "file_${file.name.hashCode()}",
+                                    title = title,
+                                    artist = artist,
+                                    album = album,
+                                    durationSeconds = meta.durationSeconds,
+                                    dataPath = dataPath,
+                                    isSample = false,
+                                    dominantColor = colors.first,
+                                    vibrantColor = colors.second,
+                                    fileSizeMB = sizeMB
+                                )
                             )
-                        )
-                    }
+                        }
                 }
             }
         }

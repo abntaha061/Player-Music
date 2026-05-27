@@ -1090,19 +1090,8 @@ fun DiscoverLocalItem(
                     .background(GlassWhite)
                     .padding(horizontal = 8.dp, vertical = 4.dp)
             ) {
-                val file = java.io.File(song.dataPath)
-                val size = if (file.exists() && file.isFile) {
-                    val bytes = file.length()
-                    if (bytes > 0) {
-                        String.format(java.util.Locale.US, "%.1f MB", bytes.toDouble() / (1024 * 1024))
-                    } else {
-                        "8.0 MB"
-                    }
-                } else {
-                    "8.0 MB"
-                }
                 Text(
-                    text = size,
+                    text = song.fileSizeMB,
                     fontSize = 10.sp,
                     fontWeight = FontWeight.Bold,
                     color = TextGrey
