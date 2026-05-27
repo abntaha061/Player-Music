@@ -39,125 +39,56 @@ object PaletteHelper {
 
     /**
      * Extracts a balanced pair of dominant and vibrant/muted contrast colors from a Bitmap.
-     * Replicates the exact behavior of Android Palette API with 100% offline safety.
+     * Uses the official Android Palette API with programmatic saturation/lightness boosting.
      */
     fun extractPalette(bitmap: Bitmap): Pair<Color, Color> {
         return try {
-            val width = bitmap.width
-            val height = bitmap.height
+            val palette = androidx.palette.graphics.Palette.from(bitmap).generate()
 
-            // We sample the bitmap pixels (256 samples max)
-            val stepX = (width / 16).coerceAtLeast(1)
-            val stepY = (height / 16).coerceAtLeast(1)
+            val primaryRGB = palette.vibrantSwatch?.rgb 
+                ?: palette.darkVibrantSwatch?.rgb
+                ?: palette.lightVibrantSwatch?.rgb
+                ?: palette.dominantSwatch?.rgb
+                ?: palette.mutedSwatch?.rgb
+                ?: 0xFFBD83FF.toInt()
 
-            val sampledColors = mutableListOf<Int>()
-            for (x in 0 until width step stepX) {
-                for (y in 0 until height step stepY) {
-                    if (x < width && y < height) {
-                        val pixel = bitmap.getPixel(x, y)
-                        val alpha = (pixel shr 24) and 0xFF
-                        if (alpha > 200) {
-                            sampledColors.add(pixel)
-                        }
-                    }
-                }
-            }
+            val secondaryRGB = palette.dominantSwatch?.rgb 
+                ?: palette.mutedSwatch?.rgb
+                ?: palette.darkMutedSwatch?.rgb
+                ?: palette.lightMutedSwatch?.rgb
+                ?: palette.vibrantSwatch?.rgb
+                ?: 0xFF00ADB5.toInt()
 
-            if (sampledColors.isEmpty()) {
-                return Pair(Color(0xFFBD83FF), Color(0xFF00ADB5))
-            }
-
-            // Quantize colors into small bins of R, G, B to find the dominant color frequency
-            val frequencyMap = mutableMapOf<Int, Int>()
-            for (color in sampledColors) {
-                val r = (color shr 16) and 0xFF
-                val g = (color shr 8) and 0xFF
-                val b = color and 0xFF
-                // Quantize to 4-bit per channel
-                val quantized = ((r / 16) shl 8) or ((g / 16) shl 4) or (b / 16)
-                frequencyMap[quantized] = (frequencyMap[quantized] ?: 0) + 1
-            }
-
-            // Find dominant quantized bin
-            val dominantBin = frequencyMap.maxByOrNull { it.value }?.key ?: 0
-
-            // Reconstruct the dominant color by averaging pixels in that dominant bin
-            var domR = 0
-            var domG = 0
-            var domB = 0
-            var domCount = 0
-
-            for (color in sampledColors) {
-                val r = (color shr 16) and 0xFF
-                val g = (color shr 8) and 0xFF
-                val b = color and 0xFF
-                val quantized = ((r / 16) shl 8) or ((g / 16) shl 4) or (b / 16)
-                if (quantized == dominantBin) {
-                    domR += r
-                    domG += g
-                    domB += b
-                    domCount++
-                }
-            }
-
-            val finalDominant = if (domCount > 0) {
-                Color(domR / domCount, domG / domCount, domB / domCount)
-            } else {
-                Color(0xFFBD83FF)
-            }
-
-            // Find a vibrant contrast color: highest saturation that has a distinct hue
-            val domHsv = FloatArray(3)
-            android.graphics.Color.RGBToHSV(
-                (finalDominant.red * 255).toInt(),
-                (finalDominant.green * 255).toInt(),
-                (finalDominant.blue * 255).toInt(),
-                domHsv
-            )
-            val domHue = domHsv[0]
-
-            var bestVibrantColor = -1
-            var maxVibrancyScore = -1f
-
-            for (color in sampledColors) {
-                val r = (color shr 16) and 0xFF
-                val g = (color shr 8) and 0xFF
-                val b = color and 0xFF
-
+            // Programmatic saturation and lightness adjustment logic to make colors glow/neon
+            fun adjustColor(colorInt: Int): Color {
                 val hsv = FloatArray(3)
-                android.graphics.Color.RGBToHSV(r, g, b, hsv)
-                val hue = hsv[0]
-                val sat = hsv[1]
-                val value = hsv[2]
-
-                // Hue difference (difference on 360-degree circle)
-                val hueDiff = 180f - abs(abs(hue - domHue) - 180f)
-
-                // Vibrancy Score favors saturated, bright colors with distinct hues
-                val vibrancy = sat * 0.6f + value * 0.4f
-                val hueFactor = if (hueDiff > 30f) 1.5f else 0.7f
-                val score = vibrancy * hueFactor
-
-                if (score > maxVibrancyScore) {
-                    maxVibrancyScore = score
-                    bestVibrantColor = color
-                }
+                android.graphics.Color.colorToHSV(colorInt, hsv)
+                // Boost saturation to ensure color is vivid (at least 0.70, or +20% boost)
+                hsv[1] = (hsv[1] * 1.25f).coerceIn(0.70f, 1.0f)
+                // Boost brightness to ensure color glows (at least 0.65, or +15% boost)
+                hsv[2] = (hsv[2] * 1.15f).coerceIn(0.65f, 0.95f)
+                return Color(android.graphics.Color.HSVToColor(hsv))
             }
 
-            val finalVibrant = if (bestVibrantColor != -1) {
-                Color(
-                    red = (bestVibrantColor shr 16) and 0xFF,
-                    green = (bestVibrantColor shr 8) and 0xFF,
-                    blue = bestVibrantColor and 0xFF
-                )
-            } else {
-                // Generate a complementary color using Hue rotation if no distinct color is found
-                val complimentaryHue = (domHue + 180f) % 360f
-                val compColorInt = android.graphics.Color.HSVToColor(floatArrayOf(complimentaryHue, 0.75f, 0.85f))
-                Color(compColorInt)
+            var primaryColor = adjustColor(primaryRGB)
+            var secondaryColor = adjustColor(secondaryRGB)
+
+            // If primary and secondary colors are too similar, rotate hue of secondary to create a gorgeous gradient
+            val hsvP = FloatArray(3)
+            val hsvS = FloatArray(3)
+            android.graphics.Color.colorToHSV(primaryRGB, hsvP)
+            android.graphics.Color.colorToHSV(secondaryRGB, hsvS)
+            
+            val hueDiff = abs(hsvP[0] - hsvS[0])
+            val isTooSimilar = hueDiff < 30f || (primaryRGB == secondaryRGB)
+            if (isTooSimilar) {
+                // Rotate the hue of secondary color by 45 degrees to find a lovely contrast color
+                val newHue = (hsvP[0] + 45f) % 360f
+                val boostedColorInt = android.graphics.Color.HSVToColor(floatArrayOf(newHue, 0.75f, 0.85f))
+                secondaryColor = Color(boostedColorInt)
             }
 
-            Pair(finalDominant, finalVibrant)
+            Pair(primaryColor, secondaryColor)
         } catch (e: Exception) {
             Pair(Color(0xFFBD83FF), Color(0xFF00ADB5))
         }

@@ -164,11 +164,11 @@ fun AmbientGlassBackground(
                 }
         )
 
-        // 3. Perfect transparent dark overlay scrim (48% opacity) above base gradient to ensure maximum contrast and clear text readability
+        // 3. Perfect transparent dark overlay scrim (28% opacity) above base gradient to ensure maximum contrast and clear text readability
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .background(SpaceBlack.copy(alpha = 0.48f))
+                .background(SpaceBlack.copy(alpha = 0.28f))
         )
 
         content()

@@ -44,11 +44,11 @@ fun AlbumArtView(
     var isLoaded by remember(filePath) { mutableStateOf(false) }
 
     LaunchedEffect(filePath) {
-        withContext(Dispatchers.IO) {
-            val art = PaletteHelper.extractEmbeddedArt(filePath)
-            bitmap = art
-            isLoaded = true
+        val art = withContext(Dispatchers.IO) {
+            PaletteHelper.extractEmbeddedArt(filePath)
         }
+        bitmap = art
+        isLoaded = true
     }
 
     val shape = if (isCircular) CircleShape else RoundedCornerShape(12.dp)

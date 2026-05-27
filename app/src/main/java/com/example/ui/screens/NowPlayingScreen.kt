@@ -24,6 +24,9 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Shadow
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalDensity
@@ -40,6 +43,12 @@ import com.example.ui.components.glassmorphic
 import com.example.ui.theme.TextMuted
 import com.example.util.LyricLine
 import kotlinx.coroutines.launch
+
+val PremiumTextShadow = Shadow(
+    color = Color.Black.copy(alpha = 0.55f),
+    offset = Offset(0f, 2f),
+    blurRadius = 6f
+)
 
 @Composable
 fun NowPlayingScreen(
@@ -116,11 +125,11 @@ fun NowPlayingScreen(
             )
         }
 
-        // 3. Top Scrim Layer: Dark Scrim (50% opacity) above gradient to safeguard high-contrast text visibility
+        // 3. Top Scrim Layer: Dark Scrim (28% opacity) above gradient to safeguard high-contrast text visibility
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .background(Color(0xFF040408).copy(alpha = 0.50f))
+                .background(Color(0xFF040408).copy(alpha = 0.28f))
         )
 
         // Main content block
@@ -167,16 +176,18 @@ fun NowPlayingScreen(
                             fontWeight = FontWeight.Bold,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
-                            textAlign = TextAlign.Center
+                            textAlign = TextAlign.Center,
+                            style = TextStyle(shadow = PremiumTextShadow)
                         )
                         Spacer(modifier = Modifier.height(2.dp))
                         Text(
                             text = song.artist,
-                            color = Color.White.copy(alpha = 0.6f),
+                            color = Color.White.copy(alpha = 0.7f),
                             fontSize = 13.sp,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
-                            textAlign = TextAlign.Center
+                            textAlign = TextAlign.Center,
+                            style = TextStyle(shadow = PremiumTextShadow)
                         )
                     }
 
@@ -207,12 +218,21 @@ fun NowPlayingScreen(
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
                     val duration = song.durationMs
-                    val posFloat = currentPosition.toFloat().coerceIn(0f, duration.toFloat())
+                    var isDragging by remember { mutableStateOf(false) }
+                    var dragValue by remember { mutableStateOf(0f) }
+                    val displayValue = if (isDragging) dragValue else currentPosition.toFloat().coerceIn(0f, duration.toFloat())
 
                     // Minimalist line-styled progress seekbar
                     Slider(
-                        value = posFloat,
-                        onValueChange = { viewModel.seekTo(it.toLong()) },
+                        value = displayValue,
+                        onValueChange = {
+                            isDragging = true
+                            dragValue = it
+                        },
+                        onValueChangeFinished = {
+                            viewModel.seekTo(dragValue.toLong())
+                            isDragging = false
+                        },
                         valueRange = 0f..duration.toFloat(),
                         colors = SliderDefaults.colors(
                             thumbColor = Color.White,
@@ -350,13 +370,11 @@ fun SyncedLyricsScrollContainer(
     // Automatically centers the active lyric row smoothly into viewport
     LaunchedEffect(currentLyricIndex) {
         if (currentLyricIndex in parsedLyrics.indices) {
-            coroutineScope.launch {
-                val offsetPx = with(density) { -180.dp.roundToPx() }
-                listState.animateScrollToItem(
-                    index = currentLyricIndex,
-                    scrollOffset = offsetPx
-                )
-            }
+            val offsetPx = with(density) { -180.dp.roundToPx() }
+            listState.animateScrollToItem(
+                index = currentLyricIndex,
+                scrollOffset = offsetPx
+            )
         }
     }
 
@@ -432,6 +450,7 @@ fun LyricLineRow(
             fontSize = fontSize,
             fontWeight = fontWeight,
             textAlign = TextAlign.Center,
+            style = TextStyle(shadow = PremiumTextShadow),
             modifier = Modifier.scale(scale)
         )
     }

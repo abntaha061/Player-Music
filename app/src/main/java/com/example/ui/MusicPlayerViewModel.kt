@@ -187,8 +187,12 @@ class MusicPlayerViewModel(application: Application) : AndroidViewModel(applicat
                     if (position >= threshold && threshold > 0) {
                         hasCountedCurrentPlay = true
                         viewModelScope.launch(Dispatchers.IO) {
-                            repository.incrementPlayCount(song.filePath)
-                            Log.d(TAG, "Threshold met for ${song.title}: $position ms >= $threshold ms. play_count incremented on Dispatchers.IO.")
+                            try {
+                                repository.incrementPlayCount(song.filePath)
+                                Log.d(TAG, "Threshold met for ${song.title}: $position ms >= $threshold ms. play_count incremented on Dispatchers.IO.")
+                            } catch (e: Exception) {
+                                Log.e(TAG, "Failed incrementing play count: ${e.message}", e)
+                            }
                         }
                     }
                 }
@@ -232,14 +236,18 @@ class MusicPlayerViewModel(application: Application) : AndroidViewModel(applicat
 
     fun toggleFavorite(song: SongEntity) {
         viewModelScope.launch(Dispatchers.IO) {
-            val updatedFavoriteState = !song.isFavorite
-            repository.toggleFavorite(song.filePath, updatedFavoriteState)
-            // If the song is the one currently playing, update its local entity to refresh UI
-            if (currentSong.value?.filePath == song.filePath) {
-                val current = currentSong.value
-                if (current != null) {
-                    playerManager.play(current.copy(isFavorite = updatedFavoriteState))
+            try {
+                val updatedFavoriteState = !song.isFavorite
+                repository.toggleFavorite(song.filePath, updatedFavoriteState)
+                // If the song is the one currently playing, update its local entity to refresh UI
+                if (currentSong.value?.filePath == song.filePath) {
+                    val current = currentSong.value
+                    if (current != null) {
+                        playerManager.play(current.copy(isFavorite = updatedFavoriteState))
+                    }
                 }
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed toggling favorite: ${e.message}", e)
             }
         }
     }
